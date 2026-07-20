@@ -37,9 +37,10 @@ Route::post('/complete-letter-submission', [TransactionController::class, 'proce
 
 Route::get('/access-transaction/{token}', [TransactionController::class, 'accessTransaction'])
      ->name('transaction.access');
-Route::get('/invitation', function () {
+
+     Route::get('/invitation', function () {
     return view('page.auth.invitation');
-})->name('invitation.page');
+})->middleware('guest')->name('invitation.page');
 Route::get('logout', [AuthController::class, 'logout'])->name('auth.logout');
 Route::get('register', [AuthController::class, 'register'])->name('auth.register');
 Route::get('register/set-profile', [AuthController::class, 'openProfilePage'])->name('auth.setProfile');

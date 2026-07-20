@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -51,7 +50,7 @@
         .details-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
+            margin: 10px 0 20px 0;
             font-size: 10pt;
         }
 
@@ -144,20 +143,27 @@
 
             <p>Dengan ini menyatakan bahwa telah dilakukan serah terima barang sebagai bagian dari pelaksanaan kegiatan instalasi/perbaikan jaringan, dengan rincian sebagai berikut:</p>
 
-            @if($letter->details && $letter->details->count() > 0)
+            @php
+                $handoverDetails = $letter->details->where('status', 0);
+                $withdrawalDetails = $letter->details->where('status', 1);
+            @endphp
+
+            {{-- BLOK PENYERAHAN BARANG (STATUS 0) --}}
+            @if($handoverDetails->count() > 0)
+                <p style="margin-bottom: 5px; font-weight: bold;">A. Perangkat Yang Diserahkan:</p>
                 <table class="details-table">
                     <thead>
                         <tr>
-                            <th>No.</th>
+                            <th width="30">No.</th>
                             <th>Nama Perangkat</th>
                             <th>Kondisi</th>
-                            <th>Jumlah</th>
+                            <th width="80">Jumlah</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($letter->details as $index => $detail)
+                        @foreach($handoverDetails->values() as $index => $detail)
                             <tr>
-                                <td>{{ $index + 1 }}</td>
+                                <td style="text-align: center;">{{ $index + 1 }}</td>
                                 <td>{{ $detail->storedDevice?->device?->brand ?? 'N/A' }} {{ $detail->storedDevice?->device?->model ?? '' }}</td>
                                 <td>{{ $detail->storedDevice?->condition ?? 'N/A' }}</td>
                                 <td style="text-align: center;">{{ $detail->quantity }}</td>
@@ -167,7 +173,41 @@
                 </table>
             @endif
 
-            <p>Barang-barang tersebut telah diterima dalam kondisi baik dan lengkap, serta akan digunakan sesuai dengan kebutuhan dan ketentuan yang berlaku di lingkungan instansi penerima.</p>
+            {{-- BLOK PENARIKAN BARANG (STATUS 1) --}}
+            @if($withdrawalDetails->count() > 0)
+                <p style="margin-bottom: 5px; font-weight: bold;">B. Perangkat Yang Ditarik Kembali:</p>
+                <table class="details-table">
+                    <thead>
+                        <tr>
+                            <th width="30">No.</th>
+                            <th>Nama Perangkat</th>
+                            <th>Kondisi</th>
+                            <th width="80">Jumlah</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($withdrawalDetails->values() as $index => $detail)
+                            <tr>
+                                <td style="text-align: center;">{{ $index + 1 }}</td>
+                                <td>{{ $detail->storedDevice?->device?->brand ?? 'N/A' }} {{ $detail->storedDevice?->device?->model ?? '' }}</td>
+                                <td>
+                                    {{-- Logika status withdrawcondition: 1 = Rusak, 0 = Bekas --}}
+                                    @if($detail->withdrawcondition === 1)
+                                        Rusak
+                                    @elseif($detail->withdrawcondition === 0)
+                                        Bekas
+                                    @else
+                                        {{ $detail->storedDevice?->condition ?? 'N/A' }}
+                                    @endif
+                                </td>
+                                <td style="text-align: center;">{{ $detail->quantity }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+
+            <p>Barang-barang tersebut telah diterima dan diserahkan kembali dalam kondisi baik dan lengkap, serta akan digunakan sesuai dengan kebutuhan dan ketentuan yang berlaku di lingkungan instansi penerima.</p>
 
             <p>Demikian berita acara ini dibuat dengan sebenar-benarnya untuk dapat dipergunakan sebagaimana mestinya.</p>
         </div>
@@ -178,13 +218,11 @@
                     PIHAK PERTAMA<br><br>
                     <div class="signature-space"></div>
                     (________________________)<br>
-        
                 </td>
                 <td>
                     PIHAK KEDUA<br><br>
                     <div class="signature-space"></div>
                     (<strong>{{ $letter->client?->profile?->name ?? '____________________' }}</strong>)<br>
-                    
                 </td>
             </tr>
         </table>

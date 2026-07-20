@@ -79,17 +79,18 @@
                                     @endif
                                 @endif
                             @endauth
+                            
                             @if (session()->has('profile_incomplete'))
                                 <div class="alert alert-primary" style="margin-top: 20px; margin-bottom : -20px">{!! session('profile_incomplete') !!}</div>
                             @endif
                             {{-- Notifikasi Sukses dan Error --}}
                             @if (session()->has('success'))
                                 <div class="alert alert-success alert-dismissible fade show" style="margin-top: 20px; margin-bottom : -20px">
-                                    {{ session('success') }}
-                                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    {!! session('success') !!}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                                 </div>
                             @endif
-                             @if (session()->has('error'))
+                            @if (session()->has('error'))
                                 <div class="alert alert-danger alert-dismissible fade show" style="margin-top: 20px; margin-bottom : -20px">
                                     {{ session('error') }}
                                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -248,53 +249,51 @@
         </div>
     </div>
 
-
     {{-- Modal Preview PDF --}}
     <div class="modal fade" id="pdfPreviewModal" tabindex="-1" aria-labelledby="pdfPreviewModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="pdfPreviewModalLabel">Pratinjau Dokumen</h5>
+                <div class="modal-header py-2 px-3">
+                    <h5 class="modal-title fs-6" id="pdfPreviewModalLabel">Pratinjau Dokumen</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body" id="pdfModalBody" style="min-height: 80vh; background-color: #f5f5f5; padding: 10px;">
+                <div class="modal-body" id="pdfModalBody" style="max-height: 65vh; background-color: #f5f5f5; padding: 10px;">
                     
-                    <div id="single-preview-container" style="display: none; height: 100%; overflow-y: auto;">
-                        <p class="loading-message text-center text-muted p-5">Memuat dokumen...</p>
+                    <div id="single-preview-container" style="display: none; height: 100%; max-height: 60vh; overflow-y: auto;">
+                        <p class="loading-message text-center text-muted p-4">Memuat dokumen...</p>
                         <div id="single-pdf-content"></div>
                     </div>
 
                     <div id="tabbed-preview-container" style="display: none;">
                         <ul class="nav nav-tabs" id="documentTab" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="draf-tab" data-bs-toggle="tab" data-bs-target="#draf-pane" type="button" role="tab" aria-controls="draf-pane" aria-selected="true">Draf Surat</button>
+                                <button class="nav-link active py-1 px-3" id="draf-tab" data-bs-toggle="tab" data-bs-target="#draf-pane" type="button" role="tab" aria-controls="draf-pane" aria-selected="true">Draf Surat</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="tertanda-tab" data-bs-toggle="tab" data-bs-target="#tertanda-pane" type="button" role="tab" aria-controls="tertanda-pane" aria-selected="false">Surat Tertanda</button>
+                                <button class="nav-link py-1 px-3" id="tertanda-tab" data-bs-toggle="tab" data-bs-target="#tertanda-pane" type="button" role="tab" aria-controls="tertanda-pane" aria-selected="false">Surat Tertanda</button>
                             </li>
                         </ul>
-                        <div class="tab-content pt-3" id="documentTabContent">
-                            <div class="tab-pane fade show active" id="draf-pane" role="tabpanel" aria-labelledby="draf-tab" tabindex="0" style="height: 70vh; overflow-y: auto;">
-                                <p class="loading-message text-center text-muted p-5">Memuat draf...</p>
+                        <div class="tab-content pt-2" id="documentTabContent">
+                            <div class="tab-pane fade show active" id="draf-pane" role="tabpanel" aria-labelledby="draf-tab" tabindex="0" style="max-height: 55vh; overflow-y: auto;">
+                                <p class="loading-message text-center text-muted p-4">Memuat draf...</p>
                                 <div id="draf-pdf-content"></div>
                             </div>
-                            <div class="tab-pane fade" id="tertanda-pane" role="tabpanel" aria-labelledby="tertanda-tab" tabindex="0" style="height: 70vh; overflow-y: auto;">
-                                <p class="loading-message text-center text-muted p-5">Memuat surat tertanda...</p>
+                            <div class="tab-pane fade" id="tertanda-pane" role="tabpanel" aria-labelledby="tertanda-tab" tabindex="0" style="max-height: 55vh; overflow-y: auto;">
+                                <p class="loading-message text-center text-muted p-4">Memuat surat tertanda...</p>
                                 <div id="tertanda-pdf-content"></div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-                    <button type="button" class="btn btn-primary" id="printPdfButton" style="display: none;">
+                <div class="modal-footer py-2 px-3">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="printPdfButton" style="display: none;">
                         <i class="ti ti-printer"></i> Cetak Dokumen
                     </button>
                 </div>
             </div>
         </div>
     </div>
-
 
     {{-- Modal untuk Proses Surat Baru --}}
     <div class="modal fade" id="newLetterProcessModal" tabindex="-1" aria-labelledby="newLetterProcessModalLabel" aria-hidden="true">
@@ -333,8 +332,28 @@
                                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                                 </div>
                                 <input type="text" id="equipmentSearchInput" class="form-control mb-3" placeholder="Cari berdasarkan Merek, Model, Tipe...">
-                                <div id="inventoryListContainer" style="max-height: 45vh; overflow-y: auto; border: 1px solid #eee; padding: 10px;">
-                                     <p class="text-muted" id="inventoryListPlaceholder">Ketik untuk mencari inventaris...</p>
+                                
+                                {{-- TAB UNTUK PENYERAHAN & PENARIKAN --}}
+                                <ul class="nav nav-tabs mb-2" id="equipmentFlowTab" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active py-1 px-3" id="handover-devices-tab" data-bs-toggle="tab" data-bs-target="#handover-devices-pane" type="button" role="tab">Penyerahan</button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link py-1 px-3" id="withdrawal-devices-tab" data-bs-toggle="tab" data-bs-target="#withdrawal-devices-pane" type="button" role="tab">Penarikan</button>
+                                    </li>
+                                </ul>
+
+                                <div class="tab-content" id="equipmentFlowTabContent">
+                                    <div class="tab-pane fade show active" id="handover-devices-pane" role="tabpanel">
+                                        <div id="inventoryListContainer" style="max-height: 45vh; overflow-y: auto; border: 1px solid #eee; padding: 10px;">
+                                             <p class="text-muted" id="inventoryListPlaceholder">Ketik untuk mencari inventaris...</p>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="withdrawal-devices-pane" role="tabpanel">
+                                        <div id="deployedListContainer" style="max-height: 45vh; overflow-y: auto; border: 1px solid #eee; padding: 10px;">
+                                             <p class="text-muted" id="deployedListPlaceholder">Memuat perangkat terpasang pada klien...</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div id="sstDocumentView" style="display: none; font-family: 'Times New Roman', Times, serif; font-size: 12pt; padding: 20px; border: 1px solid #ccc; background-color: #f9f9f9; height: 100%;">
@@ -349,6 +368,7 @@
                                      <strong>Klien:</strong>
                                      <p id="selectedClientName" class="text-primary fw-bold">Belum dipilih</p>
                                  </div>
+                                 
                                  <div class="mt-3">
                                     <strong>Perangkat Dipilih:</strong>
                                     <div id="selectedEquipmentDisplay" class="mt-2" style="max-height: 40vh; overflow-y: auto;">
@@ -368,7 +388,7 @@
                     </div>
                     <div id="equipmentSelectionFooter" style="display: none;">
                         <button type="button" class="btn btn-secondary me-2" id="backToClientSelectionBtn">Kembali</button>
-                        <button type="button" class="btn btn-primary" id="confirmAndShowSstBtn">Lanjutkan ke Pratinjau SST</button>
+                        <button type="button" class="btn btn-primary" id="confirmAndShowSstBtn" disabled>Lanjutkan ke Pratinjau SST</button>
                     </div>
                     <div id="sstDocumentFooter" style="display: none;">
                         <button type="button" class="btn btn-secondary me-2" id="backToEquipmentSelectionBtn">Kembali</button>
@@ -452,7 +472,6 @@
             const drafUrl = button.getAttribute('data-pdf-url');
             const signedUrl = button.getAttribute('data-signed-pdf-url');
 
-            // Untuk status 'Deleted', tampilkan draf tunggal karena tidak ada versi tertanda
             if (status === 'Closed') {
                 singlePreviewContainer.style.display = 'none';
                 tabbedPreviewContainer.style.display = 'block';
@@ -504,13 +523,11 @@
 
         // --- BLOK 2: LOGIKA UNTUK DATATABLE, FILTER, DAN LAINNYA ---
         
-        // Inisialisasi Tabel Utama
         var table = $('#dom-jqry').DataTable({
             "dom": '<"row justify-content-between"<"col-md-6"l><"col-md-6 text-end"f>>rt<"row"<"col-md-6"i><"col-md-6 text-end"p>>',
             "columnDefs": [ { "targets": 6, "orderable": false, "searchable": false } ] 
         });
 
-        // Inisialisasi Tabel Surat yang Dihapus di dalam Sidebar
         var deletedLetterTable;
         $('#deletedLettersSidebar').on('shown.bs.offcanvas', function () {
             if (!$.fn.DataTable.isDataTable('#deleted-letter-table')) {
@@ -521,7 +538,6 @@
             }
         });
 
-        // Event handler untuk tombol filter
         $('.filter-btn').on('click', function() {
             $('.filter-btn').removeClass('active');
             $(this).addClass('active');
@@ -531,8 +547,11 @@
 
         const allInventories = @json($inventories ?? []);
         const allClients = @json($clients ?? []);
+        
         let selectedClientData = null;
-        let selectedEquipments = [];
+        let selectedEquipments = [];      // Array untuk Serah Terima (Handover)
+        let withdrawnEquipments = [];     // Array untuk Penarikan (Withdrawal)
+        let clientDeployedUnits = [];     // Data unit terpasang milik klien aktif
 
         const newLetterModalEl = document.getElementById('newLetterProcessModal');
         const newLetterModal = new bootstrap.Modal(newLetterModalEl);
@@ -553,6 +572,7 @@
         const clientListContainer = document.getElementById('clientListContainer');
         const equipmentSearchInput = document.getElementById('equipmentSearchInput');
         const inventoryListContainer = document.getElementById('inventoryListContainer');
+        const deployedListContainer = document.getElementById('deployedListContainer');
         const selectedEquipmentList = document.getElementById('selectedEquipmentList');
         const selectedClientNameEl = document.getElementById('selectedClientName');
 
@@ -567,6 +587,7 @@
                 modalTitle.textContent = 'Buat Surat Baru - Langkah 2: Pilih Perangkat';
                 equipmentSelectionView.style.display = 'block';
                 equipmentSelectionFooter.style.display = 'flex';
+                bootstrap.Tab.getOrCreateInstance(document.getElementById('handover-devices-tab')).show();
             } else if (viewToShow === 'sst') {
                 modalTitle.textContent = 'Buat Surat Baru - Langkah 3: Pratinjau Dokumen';
                 sstDocumentView.style.display = 'block';
@@ -578,6 +599,8 @@
         function resetModal() {
             selectedClientData = null;
             selectedEquipments = [];
+            withdrawnEquipments = [];
+            clientDeployedUnits = [];
             clientSearchInput.value = '';
             equipmentSearchInput.value = '';
             filterClients('');
@@ -585,8 +608,9 @@
             selectedClientNameEl.textContent = 'Belum dipilih';
             renderSelectedEquipments();
             renderInventoryList('');
+            deployedListContainer.innerHTML = `<p class="text-muted" id="deployedListPlaceholder">Memuat perangkat terpasang pada klien...</p>`;
             goToEquipmentBtn.disabled = true;
-            confirmAndShowSstBtn.disabled = false; 
+            confirmAndShowSstBtn.disabled = true; 
             processAndSaveBtn.disabled = false; 
             processAndSaveBtn.innerHTML = 'Proses & Simpan';
             showView('client');
@@ -614,15 +638,47 @@
             selectedClientData = { id: target.dataset.clientId, name: target.dataset.clientName, institution: target.dataset.clientInstitution, address: target.dataset.clientAddress };
             selectedClientNameEl.textContent = selectedClientData.name;
             goToEquipmentBtn.disabled = false;
+
+            fetchDeployedUnits(selectedClientData.id);
         });
+
+        function fetchDeployedUnits(userId) {
+            clientDeployedUnits = [];
+            deployedListContainer.innerHTML = '<p class="text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Mencari data terpasang...</p>';
+            
+            $.ajax({
+                url: `{{ url('/api/get-deployed-devices') }}/${userId}`,
+                type: 'GET',
+                success: function(response) {
+                    if (response.devices && response.devices.length > 0) {
+                        clientDeployedUnits = response.devices;
+                        renderDeployedList('');
+                    } else {
+                        deployedListContainer.innerHTML = '<p class="text-muted text-center p-3">Klien tidak memiliki riwayat unit terpasang.</p>';
+                    }
+                },
+                error: function() {
+                    deployedListContainer.innerHTML = '<p class="text-danger text-center p-3">Gagal memuat unit terpasang.</p>';
+                }
+            });
+        }
 
         goToEquipmentBtn.addEventListener('click', () => { if(selectedClientData) showView('equipment'); });
         backToClientBtn.addEventListener('click', () => showView('client'));
         confirmAndShowSstBtn.addEventListener('click', () => {
-             if (selectedEquipments.length === 0) { document.getElementById('warning-perangkat').style.display = 'block'; return; }
+             if (selectedEquipments.length === 0 && withdrawnEquipments.length === 0) { 
+                 document.getElementById('warning-perangkat').style.display = 'block'; 
+                 return; 
+             }
              showView('sst');
         });
 
+        equipmentSearchInput.addEventListener('input', function() { 
+            renderInventoryList(this.value); 
+            renderDeployedList(this.value);
+        });
+
+        // --- RENDER & LOGIKA PENYERAHAN (HANDOVER) ---
         function renderInventoryList(searchTerm) {
             inventoryListContainer.innerHTML = '';
             const lower = searchTerm.toLowerCase();
@@ -657,56 +713,224 @@
                 button.disabled = true;
                 button.classList.replace('btn-outline-primary', 'btn-success');
                 qtyInput.disabled = true;
+                validateNextStepBtn();
             }
         });
 
-        equipmentSearchInput.addEventListener('input', function() { renderInventoryList(this.value); });
-        
-        function renderSelectedEquipments() {
-            selectedEquipmentList.innerHTML = '';
-            if (selectedEquipments.length === 0) {
-                selectedEquipmentList.innerHTML = '<li class="list-group-item text-muted" id="noEquipmentSelected">Belum ada perangkat.</li>';
+        // --- RENDER & LOGIKA PENARIKAN (WITHDRAWAL) ---
+        function renderDeployedList(searchTerm) {
+            deployedListContainer.innerHTML = '';
+            const lower = searchTerm.toLowerCase();
+            const filtered = clientDeployedUnits.filter(unit => (unit.name || '').toLowerCase().includes(lower));
+            
+            if (filtered.length === 0) {
+                deployedListContainer.innerHTML = `<p class="text-muted">${searchTerm ? 'Unit terpasang tidak ditemukan.' : 'Tidak ada perangkat terpasang.'}</p>`;
                 return;
             }
+
+            const ul = document.createElement('ul');
+            ul.className = 'list-group';
+            filtered.forEach(unit => {
+                const isSelected = withdrawnEquipments.some(we => we.stored_device_id === unit.stored_device_id);
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${unit.name}</strong><br>
+                            <small class="text-muted">Kondisi Saat Ini: ${unit.condition} | Terpasang (Stok): <b>${unit.quantity}</b> unit</small>
+                        </div>
+                        <div class="input-group input-group-sm" style="width: 220px;">
+                            <select class="form-select condition-select" ${isSelected ? 'disabled' : ''}>
+                                <option value="Bekas">Bekas</option>
+                                <option value="Rusak">Rusak</option>
+                            </select>
+                            <input type="number" class="form-control quantity-withdraw" value="1" min="1" max="${unit.quantity}" ${isSelected ? 'disabled' : ''}>
+                            <button class="btn ${isSelected ? 'btn-success' : 'btn-outline-danger'} add-withdraw-btn" data-stored-id="${unit.stored_device_id}" ${isSelected ? 'disabled' : ''}>
+                                ${isSelected ? '✓' : 'Tarik'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                ul.appendChild(li);
+            });
+            deployedListContainer.appendChild(ul);
+        }
+
+        deployedListContainer.addEventListener('click', function(event) {
+            const button = event.target.closest('.add-withdraw-btn');
+            if (!button || button.disabled) return;
+            const storedId = parseInt(button.dataset.storedId, 10);
+            const unitData = clientDeployedUnits.find(u => u.stored_device_id === storedId);
+            const qtyInput = button.previousElementSibling;
+            const condSelect = qtyInput.previousElementSibling;
+            const qty = parseInt(qtyInput.value, 10);
+            const condition = condSelect.value;
+
+            if (qty > 0 && qty <= unitData.quantity) {
+                withdrawnEquipments.push({ 
+                    stored_device_id: storedId, 
+                    name: unitData.name, 
+                    quantity: qty, 
+                    condition: condition 
+                });
+                renderSelectedEquipments();
+                button.textContent = '✓';
+                button.disabled = true;
+                button.classList.replace('btn-outline-danger', 'btn-success');
+                qtyInput.disabled = true;
+                condSelect.disabled = true;
+                validateNextStepBtn();
+            }
+        });
+
+        // --- PENYATUAN DAN RENDER SUMMARY KANAN ---
+        function renderSelectedEquipments() {
+            selectedEquipmentList.innerHTML = '';
+            
+            if (selectedEquipments.length === 0 && withdrawnEquipments.length === 0) {
+                selectedEquipmentList.innerHTML = '<li class="list-group-item text-muted" id="noEquipmentSelected">Belum ada perangkat yang dipilih.</li>';
+                return;
+            }
+
             selectedEquipments.forEach((item, index) => {
                 const li = document.createElement('li');
-                li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                li.innerHTML = `<span>${item.inventory.device.brand} ${item.inventory.device.model}<small class="text-muted d-block">Qty: ${item.quantity}</small></span><button class="btn btn-sm btn-outline-danger remove-selected-equipment-btn" data-index="${index}" data-inventory-id="${item.inventory.id}">×</button>`;
+                li.className = 'list-group-item d-flex justify-content-between align-items-center mb-1 border-primary-subtle';
+                li.innerHTML = `
+                    <span>
+                        <span class="badge bg-light-primary text-primary mb-1">Serah Terima</span><br>
+                        <strong>${item.inventory.device.brand} ${item.inventory.device.model}</strong>
+                        <small class="text-muted d-block">Qty: ${item.quantity}</small>
+                    </span>
+                    <button class="btn btn-sm btn-outline-danger remove-selected-equipment-btn" data-index="${index}" data-inventory-id="${item.inventory.id}">×</button>
+                `;
+                selectedEquipmentList.appendChild(li);
+            });
+
+            withdrawnEquipments.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center mb-1 border-danger-subtle';
+                li.innerHTML = `
+                    <span>
+                        <span class="badge bg-light-danger text-danger mb-1">Penarikan (Kondisi: ${item.condition})</span><br>
+                        <strong>${item.name}</strong>
+                        <small class="text-muted d-block">Qty: ${item.quantity}</small>
+                    </span>
+                    <button class="btn btn-sm btn-outline-danger remove-withdrawn-equipment-btn" data-index="${index}" data-stored-id="${item.stored_device_id}">×</button>
+                `;
                 selectedEquipmentList.appendChild(li);
             });
         }
 
         selectedEquipmentList.addEventListener('click', function(event) {
-            const button = event.target.closest('.remove-selected-equipment-btn');
-            if (!button) return;
-            const index = parseInt(button.dataset.index, 10);
-            const invId = parseInt(button.dataset.inventoryId, 10);
-            selectedEquipments.splice(index, 1);
-            renderSelectedEquipments();
-            const originalBtn = inventoryListContainer.querySelector(`.add-item-btn[data-inventory-id="${invId}"]`);
-            if (originalBtn) {
-                originalBtn.textContent = 'Add';
-                originalBtn.disabled = false;
-                originalBtn.classList.replace('btn-success', 'btn-outline-primary');
-                originalBtn.previousElementSibling.disabled = false;
+            const handoverBtn = event.target.closest('.remove-selected-equipment-btn');
+            const withdrawBtn = event.target.closest('.remove-withdrawn-equipment-btn');
+
+            if (handoverBtn) {
+                const index = parseInt(handoverBtn.dataset.index, 10);
+                const invId = parseInt(handoverBtn.dataset.inventoryId, 10);
+                selectedEquipments.splice(index, 1);
+                renderSelectedEquipments();
+                const originalBtn = inventoryListContainer.querySelector(`.add-item-btn[data-inventory-id="${invId}"]`);
+                if (originalBtn) {
+                    originalBtn.textContent = 'Add';
+                    originalBtn.disabled = false;
+                    originalBtn.classList.replace('btn-success', 'btn-outline-primary');
+                    originalBtn.previousElementSibling.disabled = false;
+                }
+                validateNextStepBtn();
+            }
+
+            if (withdrawBtn) {
+                const index = parseInt(withdrawBtn.dataset.index, 10);
+                const storedId = parseInt(withdrawBtn.dataset.storedId, 10);
+                withdrawnEquipments.splice(index, 1);
+                renderSelectedEquipments();
+                const originalBtn = deployedListContainer.querySelector(`.add-withdraw-btn[data-stored-id="${storedId}"]`);
+                if (originalBtn) {
+                    originalBtn.textContent = 'Tarik';
+                    originalBtn.disabled = false;
+                    originalBtn.classList.replace('btn-success', 'btn-outline-danger');
+                    originalBtn.previousElementSibling.disabled = false;
+                    originalBtn.previousElementSibling.previousElementSibling.disabled = false;
+                }
+                validateNextStepBtn();
             }
         });
 
+        function validateNextStepBtn() {
+            if (selectedEquipments.length > 0 || withdrawnEquipments.length > 0) {
+                confirmAndShowSstBtn.disabled = false;
+                document.getElementById('warning-perangkat').style.display = 'none';
+            } else {
+                confirmAndShowSstBtn.disabled = true;
+            }
+        }
+
         backToEquipmentBtn.addEventListener('click', () => showView('equipment'));
         
+        // --- PRATINJAU DUA ARAH (SST DOCUMENT) ---
         function generateSstDocument() {
             if (!selectedClientData) return;
             const today = new Date();
             const localDate = today.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             const romawi = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
             const nomor = `.../SST/DISKOMINFO/${romawi[today.getMonth()]}/${today.getFullYear()}`;
-            const listHtml = selectedEquipments.map(item => `<li>${item.inventory.device.brand} ${item.inventory.device.model} (${item.inventory.condition}) - Jumlah: ${item.quantity} unit</li>`).join('');
-            sstDocumentView.innerHTML = `<div style="text-align: center; margin-bottom: 20px;"><h4 style="text-decoration: underline; font-weight: bold;">SURAT SERAH TERIMA</h4><p>Nomor: ${nomor} (Otomatis)</p></div><p>Pada hari ini, ${localDate}, telah dilakukan serah terima perangkat antara:</p><table style="width: 100%; margin-bottom: 15px;"><tr><td style="width: 150px;"><strong>Pihak Pertama:</strong></td><td>(Perwakilan DISKOMINFO Pariaman)</td></tr><tr><td><strong>Pihak Kedua:</strong></td><td></td></tr><tr><td>Nama</td><td>: ${selectedClientData.name || ''}</td></tr><tr><td>Instansi</td><td>: ${selectedClientData.institution || ''}</td></tr><tr><td>Alamat</td><td>: ${selectedClientData.address || ''}</td></tr></table><p><strong>Rincian Perangkat:</strong></p><ol style="padding-left: 20px;">${listHtml}</ol><p>Dengan ini, pihak kedua menyatakan telah menerima perangkat dalam keadaan baik.</p><table style="width: 100%; margin-top: 40px; text-align: center;"><tr><td>Pihak Pertama,</td><td>Pihak Kedua,</td></tr><tr><td style="padding-top: 60px;">(__________________)</td><td style="padding-top: 60px;">(${selectedClientData.name || '__________________'})</td></tr></table>`;
+            
+            let handoverSectionHtml = '';
+            if (selectedEquipments.length > 0) {
+                const listHtml = selectedEquipments.map((item, i) => `<li>${item.inventory.device.brand} ${item.inventory.device.model} (${item.inventory.condition}) - Jumlah: ${item.quantity} unit</li>`).join('');
+                handoverSectionHtml = `
+                    <p style="margin-bottom: 5px;"><strong>A. PERANGKAT YANG DISERAHKAN:</strong></p>
+                    <ol style="padding-left: 20px; margin-bottom: 15px;">${listHtml}</ol>
+                `;
+            }
+
+            let withdrawalSectionHtml = '';
+            if (withdrawnEquipments.length > 0) {
+                const listHtml = withdrawnEquipments.map((item, i) => `<li>${item.name} (Kondisi Tarik: ${item.condition}) - Jumlah: ${item.quantity} unit</li>`).join('');
+                withdrawalSectionHtml = `
+                    <p style="margin-bottom: 5px;"><strong>B. PERANGKAT YANG DITARIK KEMBALI:</strong></p>
+                    <ol style="padding-left: 20px; margin-bottom: 15px;">${listHtml}</ol>
+                `;
+            }
+
+            sstDocumentView.innerHTML = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h4 style="text-decoration: underline; font-weight: bold; margin-bottom: 5px;">SURAT SERAH TERIMA</h4>
+                    <p style="margin-top: 0;">Nomor: ${nomor} (Otomatis)</p>
+                </div>
+                <p>Pada hari ini, ${localDate}, telah dilakukan serah terima perangkat antara:</p>
+                <table style="width: 100%; margin-bottom: 15px;">
+                    <tr><td style="width: 150px;"><strong>Pihak Pertama:</strong></td><td>(Perwakilan DISKOMINFO Pariaman)</td></tr>
+                    <tr><td><strong>Pihak Kedua:</strong></td><td></td></tr>
+                    <tr><td>Nama</td><td>: ${selectedClientData.name || ''}</td></tr>
+                    <tr><td>Instansi</td><td>: ${selectedClientData.institution || ''}</td></tr>
+                    <tr><td>Alamat</td><td>: ${selectedClientData.address || ''}</td></tr>
+                </table>
+                
+                ${handoverSectionHtml}
+                ${withdrawalSectionHtml}
+                
+                <p>Dengan ini, pihak kedua menyatakan telah menerima perangkat dalam keadaan baik dan mengembalikan unit lama sesuai rincian di atas.</p>
+                <table style="width: 100%; margin-top: 40px; text-align: center;">
+                    <tr><td>Pihak Pertama,</td><td>Pihak Kedua,</td></tr>
+                    <tr><td style="padding-top: 60px;">(__________________)</td><td style="padding-top: 60px;">(${selectedClientData.name || '__________________'})</td></tr>
+                </table>
+            `;
         }
 
+        // --- SUBMIT DATA KE SERVER ---
         processAndSaveBtn.addEventListener('click', async function () {
-            this.disabled = true; this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Memproses...';
-            const payload = { client_id: selectedClientData.id, equipments: selectedEquipments.map(item => ({ id: item.inventory.id, quantity: item.quantity })) };
+            this.disabled = true; 
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Memproses...';
+            
+            const payload = { 
+                client_id: selectedClientData.id, 
+                equipments: selectedEquipments.map(item => ({ id: item.inventory.id, quantity: item.quantity })),
+                withdrawals: withdrawnEquipments.map(item => ({ stored_device_id: item.stored_device_id, quantity: item.quantity, condition: item.condition }))
+            };
+
             try {
                 const response = await fetch("{{ route('panel.letter.storeWithDevices') }}", {
                     method: 'POST',

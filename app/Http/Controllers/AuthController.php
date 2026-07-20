@@ -37,43 +37,42 @@ class AuthController extends Controller
         return redirect()->route('front.index');
     }
 
-    public function authenticate(Request $request)
-    {
-        // 1. Validasi input seperti sebelumnya
-        $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|min:8',
-        ]);
-    
-        // 2. Coba untuk mengautentikasi pengguna
-        // Auth::attempt akan otomatis melakukan hashing pada password dan membandingkannya
-        if (Auth::attempt($credentials)) {
+   public function authenticate(Request $request)
+{
+    // 1. Validasi input
+    $credentials = $request->validate([
+        'email' => 'required|email',
+        'password' => 'required|min:8',
+    ]);
+
+    // Ambil status checkbox remember me (true/false)
+    $remember = $request->boolean('remember');
+
+    // 2. Coba autentikasi dengan membawa status $remember
+    if (Auth::attempt($credentials, $remember)) {
+        
+        $user = Auth::user();
+        if ($user->status === 'deleted') {
+
+            Auth::logout();
             
-            // 3. Cek status pengguna SETELAH kredensialnya valid
-            $user = Auth::user();
-            if ($user->status === 'deleted') {
-                // Jika statusnya 'deleted', logout kembali dan kirim pesan error
-                Auth::logout();
-                
-                // Menggunakan ValidationException untuk mengirim pesan error kembali ke form
-                throw ValidationException::withMessages([
-                    'email' => 'Akun Anda tidak aktif atau telah dihapus.',
-                ]);
-            }
-    
-            // 4. Regenerasi session untuk keamanan dan redirect ke dashboard
-            $request->session()->regenerate();
-            session()->put('role',$user->role);
-            
-            return redirect()->route('panel.dashboard'); // Menggunakan intended() lebih baik
+            throw ValidationException::withMessages([
+                'email' => 'Akun Anda tidak aktif atau telah dihapus.',
+            ]);
         }
-    
-        // 5. Jika autentikasi gagal (email atau password salah)
-        // Kirim pesan error yang lebih umum untuk keamanan
-        throw ValidationException::withMessages([
-            'email' => 'Kredensial yang Anda masukkan tidak cocok dengan data kami.',
-        ]);
+
+        // 4. Regenerasi session untuk keamanan dan redirect ke dashboard
+        $request->session()->regenerate();
+        session()->put('role', $user->role);
+        
+        return redirect()->intended(route('panel.dashboard'));
     }
+
+    // 5. Jika autentikasi gagal
+    throw ValidationException::withMessages([
+        'email' => 'Kredensial yang Anda masukkan tidak cocok dengan data kami.',
+    ]);
+}
 
     public function showRegistrationForm(Request $request)
     {

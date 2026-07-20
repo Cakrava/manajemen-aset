@@ -430,7 +430,20 @@
                                         <a href="#" class="list-group-item list-group-item-action letter-item"
                                             data-letter-id="{{ $letter->id }}"
                                             data-client-id="{{ $letter->client->id }}"
-                                            data-details='{!! json_encode($letter->details->map(function($d) { return ['id' => $d->storedDevice->id, 'name' => ($d->storedDevice?->device?->brand ?? 'N/A') . ' ' . ($d->storedDevice?->device?->model ?? ''), 'condition' => $d->storedDevice?->condition ?? 'N/A', 'quantity' => $d->quantity, 'source' => 'letter']; })) !!}'
+                                            data-details='{!! json_encode($letter->details->map(function($d) { 
+                                                // [LOGIKA DI VIEW] Menentukan kondisi berdasarkan status letterdetail
+                                                $condVal = ($d->status == 1) 
+                                                    ? (($d->withdrawcondition == 1) ? "Rusak" : "Bekas") 
+                                                    : ($d->storedDevice?->condition ?? "N/A");
+                                                return [
+                                                    'id' => $d->storedDevice->id, 
+                                                    'name' => ($d->storedDevice?->device?->brand ?? 'N/A') . ' ' . ($d->storedDevice?->device?->model ?? ''), 
+                                                    'condition' => $condVal, 
+                                                    'quantity' => $d->quantity, 
+                                                    'status' => $d->status, 
+                                                    'source' => 'letter'
+                                                ]; 
+                                            })) !!}'
                                             data-client-profile='{!! json_encode($letter->client->profile) !!}'>
                                             <div class="d-flex w-100 justify-content-between">
                                                 <h6 class="mb-1">{{ $letter->client?->profile?->institution}}</h6>
@@ -447,7 +460,7 @@
                             </div>
                         </div>
                     </div>
-                    <div id="cart-container" style="display: none;">
+                    <div class="mt-4" id="cart-container" style="display: none;">
                         <hr>
                         <h6 class="mb-3"><i class="ti ti-shopping-cart me-2"></i>Keranjang Transaksi</h6>
                         <div class="table-responsive">
@@ -509,9 +522,6 @@ function copyToClipboard(selector) {
 
     const url = urlInput.value;
     if (!url) {
-        // Pesan ini tidak perlu karena tombol copy hanya muncul jika ada URL.
-        // Jika ingin tetap ada, biarkan saja.
-        // toastr.info('Tidak ada URL untuk dibagikan.');
         return;
     }
 
@@ -609,27 +619,19 @@ Silakan lanjutkan proses penyelesaian berdasarkan Nomor Surat melalui tautan ber
     var button = $(event.relatedTarget);
     var modal = $(this);
 
-    // 1. Mengambil SEMUA data dari tombol di awal menggunakan .data()
-    //    jQuery otomatis mengubah 'kebab-case' di HTML menjadi 'camelCase' di JS
     const data = button.data();
-    
-    // 2. jQuery sudah otomatis mem-parsing JSON dari data-details, tidak perlu try-catch lagi
     const detailsData = data.details;
 
-    // 3. Mengisi semua elemen modal dengan data yang sudah diambil
-    modal.find('#modal-transaction-id').text(data.transactionId); // data-transaction-id -> transactionId
-    modal.find('#modal-client-name').text(data.clientName);       // data-client-name -> clientName
+    modal.find('#modal-transaction-id').text(data.transactionId); 
+    modal.find('#modal-client-name').text(data.clientName);       
     modal.find('#modal-client-phone').text(data.clientPhone);
     modal.find('#modal-institution').text(data.institution);
     modal.find('#modal-address').text(data.address);
     modal.find('#modal-date').text(data.date);
 
-    // Mengisi value ke <input> (menggunakan .val())
     modal.find('#modal-letter-number').val(data.letterNumber || 'Tidak ada surat');
-// data-letter-number -> letterNumber
     modal.find('#modal-url').val(data.url);
 
-    // Mengelola tampilan URL section
     const urlContainer = $('#url-container');
     if (data.status === 'Pending' && data.url) {
         urlContainer.removeClass('d-none');
@@ -637,7 +639,6 @@ Silakan lanjutkan proses penyelesaian berdasarkan Nomor Surat melalui tautan ber
         urlContainer.addClass('d-none');
     }
 
-    // Mengisi status badge
     if (data.status) {
         let statusBadge = '';
         switch (data.status) {
@@ -652,7 +653,6 @@ Silakan lanjutkan proses penyelesaian berdasarkan Nomor Surat melalui tautan ber
         modal.find('#modal-status').parent().hide();
     }
 
-    // Mengisi tabel detail perangkat
     var detailsContainer = modal.find('#modal-device-details');
     detailsContainer.empty();
     
@@ -755,7 +755,18 @@ Silakan lanjutkan proses penyelesaian berdasarkan Nomor Surat melalui tautan ber
                     for (const key in aggregatedCart) {
                         const item = aggregatedCart[key];
                         const deleteButton = (item.source !== 'letter') ? `<button type="button" class="btn btn-sm btn-danger btn-delete-cart-group" data-indices='${JSON.stringify(item.originalIndices)}' title="Hapus"><i class="ti ti-x"></i></button>` : '';
-                        const row = `<tr><td>${item.name}</td><td><span class="badge bg-light-secondary">${item.condition}</span></td><td class="text-end">${item.quantity}</td><td class="text-center">${deleteButton}</td></tr>`;
+                        
+                        // [LOGIKA DI VIEW] Tampilkan badge "Tarik" (Status 1) / "Serah" (Status 0) untuk item sumber surat
+                        let badgeHtml = '';
+                        if (item.source === 'letter') {
+                            if (item.status === 1) {
+                                badgeHtml = ' <span class="badge bg-light-danger text-danger">Tarik</span>';
+                            } else {
+                                badgeHtml = ' <span class="badge bg-light-primary text-primary">Serah</span>';
+                            }
+                        }
+
+                        const row = `<tr><td>${item.name}${badgeHtml}</td><td><span class="badge bg-light-secondary">${item.condition}</span></td><td class="text-end">${item.quantity}</td><td class="text-center">${deleteButton}</td></tr>`;
                         cartTbody.append(row);
                     }
                 }

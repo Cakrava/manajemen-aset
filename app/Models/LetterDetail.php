@@ -13,6 +13,8 @@ class LetterDetail extends Model
         'letter_id',
         'stored_device_id', // Ini adalah ID dari stored_devices
         'quantity',
+        'status',
+        'withdrawcondition'
     ];
 
     /**

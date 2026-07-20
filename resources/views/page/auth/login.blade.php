@@ -115,12 +115,11 @@
                     </div>
 
                     <div class="flex items-center justify-between mb-4">
-                        <label class="flex items-center">
-                            <input class="form-checkbox text-blue-600" type="checkbox" name="remember" id="remember" />
-                            <span class="ml-2 text-gray-700">Ingat saya</span>
-                        </label>
-                        <a class="text-blue-600 hover:underline text-sm" href="#">Lupa Password? (Coming Soon)</a>
-                    </div>
+    <label class="flex items-center">
+        <input class="form-checkbox text-blue-600" type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }} />
+        <span class="ml-2 text-gray-700">Ingat saya</span>
+    </label>
+</div>
 
                     <div class="mb-4">
                         <button type="submit"
