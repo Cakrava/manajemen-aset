@@ -1,7 +1,12 @@
+
 @extends('layout.sidebar')
 @section('content')
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{{-- Memuat CDN PDF.js untuk Pratinjau Dokumen Surat --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
+
     <!-- [Page specific CSS] start -->
     <link rel="stylesheet" href="{{ asset('assets/css/plugins/dataTables.bootstrap5.min.css') }}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
@@ -17,15 +22,15 @@
             background-color: #6c757d; border-color: #6c757d; color: #fff; cursor: not-allowed; opacity: 0.65;
         }
 
-        /* [MODIFIKASI] STYLING UNTUK TOMBOL FLOATING REVOKED */
+        /* STYLING UNTUK TOMBOL FLOATING REVOKED */
         .float-revoked-btn {
             position: fixed;
-            width: auto; /* Lebar otomatis */
+            width: auto;
             padding: 10px 20px;
             height: 48px;
             bottom: 40px;
             right: 40px;
-            background-color: #dc3545; /* Merah */
+            background-color: #dc3545;
             color: #fff;
             border-radius: 10px;
             text-align: center;
@@ -60,30 +65,30 @@
                         <small class="text-muted">Total transaksi aktif yang tercatat sebanyak</small><small style="color: blue"> {{ $transactions->count() }} kali</small>
                         <div class="mt-3">
                             @if (session()->has('profile_incomplete'))
-                            <div class="alert alert-primary" style="margin-top: 20px; margin-bottom : -20px">{!! session('profile_incomplete') !!}</div>
-                        @endif
+                                <div class="alert alert-primary" style="margin-top: 20px; margin-bottom : -20px">{!! session('profile_incomplete') !!}</div>
+                            @endif
 
                             @auth
-                            @if (Auth::user()->role === 'admin')
-                            @if (!session()->has('profile_incomplete'))
-                            <button type="button" class="btn btn-primary" style="margin-bottom: -10px" data-bs-toggle="modal" data-bs-target="#newFlowModal">
-                                <i class="ti ti-plus"></i> New Flow
-                            </button>
-                            @endif
-                            @endif
-                        @endauth
+                                @if (Auth::user()->role === 'admin')
+                                    @if (!session()->has('profile_incomplete'))
+                                        <button type="button" class="btn btn-primary" style="margin-bottom: -10px" data-bs-toggle="modal" data-bs-target="#newFlowModal">
+                                            <i class="ti ti-plus"></i> New Flow
+                                        </button>
+                                    @endif
+                                @endif
+                            @endauth
                         </div>
                         @if (session()->has('success'))
-                        <div class="alert alert-success alert-dismissible fade show" style="margin-top: 20px; margin-bottom : -20px">
-                            {{ session('success') }}
-                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
+                            <div class="alert alert-success alert-dismissible fade show" style="margin-top: 20px; margin-bottom : -20px">
+                                {{ session('success') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
                         @endif
                         @if($letters && $letters->count() > 0)
-                        <div class="alert alert-info alert-dismissible fade show" style="margin-top: 20px; margin-bottom: -20px">
-                            <p>Anda memiliki surat dalam status <strong>Needed</strong> sebanyak <strong>{{ $letters->count() }}</strong> surat</p>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
+                            <div class="alert alert-info alert-dismissible fade show" style="margin-top: 20px; margin-bottom: -20px">
+                                <p>Anda memiliki surat dalam status <strong>Needed</strong> sebanyak <strong>{{ $letters->count() }}</strong> surat</p>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
                         @endif
                     </div>
 
@@ -96,7 +101,7 @@
                         </div>
                         <style>.filter-v1 .filter-btn{background:0 0;border:none;padding:8px 15px;color:#495057;cursor:pointer;position:relative}.filter-v1 .filter-btn:hover{color:#0ea2bc}.filter-v1 .filter-btn.active{color:#0ea2bc;font-weight:700}.filter-v1 .filter-btn.active::after{content:'';position:absolute;bottom:-2px;left:8px;right:8px;height:2px;background-color:#0ea2bc}</style>
                         
-                        {{-- Tabel Utama (Tanpa Revoked) --}}
+                        {{-- Tabel Utama --}}
                         <div class="dt-responsive">
                             <table id="transaction-table" class="table table-striped table-bordered nowrap">
                                 <thead>
@@ -112,19 +117,37 @@
                                 </thead>
                                 <tbody>
                                     @foreach($transactions as $transaction)
+                                        @php
+                                            $hasSerah = $transaction->letter && $transaction->letter->details->pluck('status')->contains(0);
+                                            $hasTarik = $transaction->letter && $transaction->letter->details->pluck('status')->contains(1);
+                                            $isHybrid = $hasSerah && $hasTarik;
+                                            $isPureWithdrawalLetter = !$hasSerah && $hasTarik;
+                                        @endphp
                                         <tr>
-                                            <td>{{ $transaction->transaction_number}}</td>
+                                            <td>{{ $transaction->transaction_number }}</td>
                                             <td>{{ $transaction->client?->profile?->name ?? $transaction->otherSourceProfile?->name ?? 'Internal' }}</td>
                                             <td>{{ $transaction->client?->profile?->institution ?? $transaction->otherSourceProfile?->institution ?? '-' }}</td>
                                             <td>
+                                                {{-- [LOGIKA DI VIEW v1.2] Render tipe aktivitas secara dinamis di tabel utama --}}
                                                 @if($transaction->transaction_type == 'in')
-                                                    <span style="color: green; font-weight: 500;">In <i class="ti ti-arrow-down"></i></span>
+                                                    @if($isPureWithdrawalLetter)
+                                                        <span style="color: green; font-weight: 500;">In <i class="ti ti-arrow-down"></i></span>
+                                                    @else
+                                                        <span style="color: green; font-weight: 500;">In <i class="ti ti-arrow-down"></i></span>
+                                                    @endif
+                                                @elseif($isHybrid)
+                                                    <span style="color: #6f42c1; font-weight: 500;">In & Out <i class="ti ti-arrows-up-down"></i></span>
                                                 @else
                                                     <span style="color: red; font-weight: 500;">Out <i class="ti ti-arrow-up"></i></span>
                                                 @endif
                                             </td>
                                             <td>
-                                                @php $statusText = ucwords($transaction->instalation_status); @endphp
+                                                @php 
+                                                    $statusText = ucwords($transaction->instalation_status); 
+                                                    if ($isHybrid && $transaction->instalation_status == 'Deployed') {
+                                                        $statusText = 'Deployed & Intake';
+                                                    }
+                                                @endphp
                                                 @if($transaction->instalation_status == 'Intake')
                                                     <span style="display: inline-block; min-width: 95px; font-size: 13px; padding: 4px 9px; text-align: center; border-radius: 5px; font-weight: 500; background-color: #ffffff; color: #0d6efd; border: 1.5px solid #0d6efd;">{{ $statusText }}</span>
                                                 @elseif($transaction->instalation_status == 'Pending')
@@ -144,15 +167,28 @@
                                                     data-institution="{{ $transaction->client?->profile?->institution ?? $transaction->otherSourceProfile?->institution ?? 'N/A' }}"
                                                     data-address="{{ $transaction->client?->profile?->address ?? $transaction->otherSourceProfile?->address ?? 'N/A' }}"
                                                     data-status="{{ $transaction->instalation_status ?? 'Pending' }}"
-                                                       data-letter-number="{{ $transaction->letter?->letter_number ?? 'Tidak ada surat' }}"
+                                                    data-letter-number="{{ $transaction->letter?->letter_number ?? 'Tidak ada surat' }}"
                                                     data-date="{{ $transaction->created_at->format('d F Y, H:i') }}"
                                                     @auth
-                                                    @if (Auth::user()->role === 'admin' && $transaction->instalation_status === 'Pending' && isset($tokenLinks[$transaction->id]['url']))
-                                                        data-url="{{ $tokenLinks[$transaction->id]['url'] }}"
-                                                    @endif
-                                                @endauth
-                                                
-                                                    data-details='{!! json_encode($transaction->details->map(function($d) { return ['device' => ($d->storedDevice?->device?->brand ?? 'N/A') . ' ' . ($d->storedDevice?->device?->model ?? ''), 'quantity' => $d->quantity, 'condition' => $d->storedDevice?->condition ?? 'N/A']; })) !!}'>
+                                                        @if (Auth::user()->role === 'admin' && $transaction->instalation_status === 'Pending' && isset($tokenLinks[$transaction->id]['url']))
+                                                            data-url="{{ $tokenLinks[$transaction->id]['url'] }}"
+                                                        @endif
+                                                    @endauth
+                                                    data-letter-pdf-url="{{ $transaction->letter?->pdf_path ? route('panel.letter.view_archive', $transaction->letter->id) : '' }}"
+                                                    data-letter-signed-pdf-url="{{ $transaction->letter?->sign_pdf_path ? route('panel.letter.view_signed_archive', $transaction->letter->id) : '' }}"
+                                                    data-details='{!! json_encode($transaction->details->map(function($d) use ($transaction) { 
+                                                        $status = 0;
+                                                        if ($transaction->letter) {
+                                                            $ld = $transaction->letter->details->where("stored_device_id", $d->stored_device_id)->first();
+                                                            if ($ld) { $status = $ld->status; }
+                                                        }
+                                                        return [
+                                                            "device" => ($d->storedDevice?->device?->brand ?? "N/A") . " " . ($d->storedDevice?->device?->model ?? ""), 
+                                                            "quantity" => $d->quantity, 
+                                                            "condition" => $d->storedDevice?->condition ?? "N/A",
+                                                            "status" => $status
+                                                        ]; 
+                                                    })) !!}'>
                                                     <i class="ti ti-eye"></i>
                                                 </button>
                                             </td>
@@ -167,7 +203,7 @@
         </div>
     </div>
 
-    {{-- [MODIFIKASI] TOMBOL FLOATING UNTUK REVOKED --}}
+    {{-- TOMBOL FLOATING UNTUK REVOKED --}}
     @if($revokedTransactions->count() > 0)
         <div class="float-revoked-btn" data-bs-toggle="offcanvas" data-bs-target="#revokedSidebar" aria-controls="revokedSidebar">
             <i class="ti ti-trash-x"></i>
@@ -176,7 +212,7 @@
         </div>
     @endif
 
-    {{-- [MODIFIKASI] SIDEBAR (OFFCANVAS) UNTUK TRANSAKSI REVOKED --}}
+    {{-- SIDEBAR (OFFCANVAS) UNTUK TRANSAKSI REVOKED --}}
     <div class="offcanvas offcanvas-end" tabindex="-1" id="revokedSidebar" aria-labelledby="revokedSidebarLabel" style="width: 60%;">
         <div class="offcanvas-header">
             <h5 id="revokedSidebarLabel"><i class="ti ti-trash-x me-2 text-danger"></i>Riwayat Transaksi Dibatalkan</h5>
@@ -208,11 +244,25 @@
                                         data-client-phone="{{ $transaction->client?->profile?->phone ?? $transaction->otherSourceProfile?->phone ?? 'N/A' }}"
                                         data-institution="{{ $transaction->client?->profile?->institution ?? $transaction->otherSourceProfile?->institution ?? 'N/A' }}"
                                         data-address="{{ $transaction->client?->profile?->address ?? $transaction->otherSourceProfile?->address ?? 'N/A' }}"
-                                        data-status="Revoked" {{-- Set status manual --}}
+                                        data-status="Revoked"
                                         data-date="{{ $transaction->created_at->format('d F Y, H:i') }}"
-                                 data-letter-number="{{ $transaction->letter?->letter_number ?? 'Tidak ada surat' }}"
-                                        data-url="" {{-- URL tidak relevan untuk revoked --}}
-                                        data-details='{!! json_encode($transaction->details->map(function($d) { return ['device' => ($d->storedDevice?->device?->brand ?? 'N/A') . ' ' . ($d->storedDevice?->device?->model ?? ''), 'quantity' => $d->quantity, 'condition' => $d->storedDevice?->condition ?? 'N/A']; })) !!}'>
+                                        data-letter-number="{{ $transaction->letter?->letter_number ?? 'Tidak ada surat' }}"
+                                        data-url=""
+                                        data-letter-pdf-url="{{ $transaction->letter?->pdf_path ? route('panel.letter.view_archive', $transaction->letter->id) : '' }}"
+                                        data-letter-signed-pdf-url="{{ $transaction->letter?->sign_pdf_path ? route('panel.letter.view_signed_archive', $transaction->letter->id) : '' }}"
+                                        data-details='{!! json_encode($transaction->details->map(function($d) use ($transaction) { 
+                                            $status = 0;
+                                            if ($transaction->letter) {
+                                                $ld = $transaction->letter->details->where("stored_device_id", $d->stored_device_id)->first();
+                                                if ($ld) { $status = $ld->status; }
+                                            }
+                                            return [
+                                                "device" => ($d->storedDevice?->device?->brand ?? "N/A") . " " . ($d->storedDevice?->device?->model ?? ""), 
+                                                "quantity" => $d->quantity, 
+                                                "condition" => $d->storedDevice?->condition ?? "N/A",
+                                                "status" => $status
+                                            ]; 
+                                        })) !!}'>
                                         <i class="ti ti-eye"></i>
                                     </button>
                                 </td>
@@ -224,60 +274,115 @@
         </div>
     </div>
 
-    {{-- Transaction Detail Modal --}}
+    {{-- Transaction Detail Modal (Dilengkapi dengan Pratinjau Surat Dua Arah) --}}
     <div class="modal fade" id="transactionDetailModal" tabindex="-1" aria-labelledby="transactionDetailModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header py-2 px-3">
                     <h5 class="modal-title" id="transactionDetailModalLabel">Detail Transaksi: <span id="modal-transaction-id" class="fw-bold"></span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div id="modal-url-section" class="mt-3">
-                        <h6 class="mb-1">Nomor Surat</h6>
-                        <div class="input-group mb-3">
-                            <input type="text" id="modal-letter-number" class="form-control bg-light" readonly>
-                        </div>
+                
+                {{-- Tab Navigasi Modal Detail --}}
+                <ul class="nav nav-tabs pt-2 px-3 bg-light" id="transactionDetailTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active py-2 px-3" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-pane" type="button" role="tab" aria-controls="info-pane" aria-selected="true">Informasi Transaksi</button>
+                    </li>
+                    <li class="nav-item" role="presentation" id="document-tab-li" style="display: none;">
+                        <button class="nav-link py-2 px-3" id="preview-doc-tab" data-bs-toggle="tab" data-bs-target="#preview-doc-pane" type="button" role="tab" aria-controls="preview-doc-pane" aria-selected="false">Pratinjau Dokumen Surat</button>
+                    </li>
+                </ul>
 
-                        <div id="url-container" class="d-none">
-                            <h6 class="mb-1">URL Penyelesaian</h6>
-                            <div class="input-group mb-2">
-                                <input type="text" id="modal-url" class="form-control" readonly>
-                                <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('#modal-url')">Salin</button>
+                <div class="modal-body" id="detailModalBody" style="background-color: #f8f9fa;">
+                    <div class="tab-content" id="transactionDetailTabContent">
+                        
+                        {{-- PANEL 1: Informasi Transaksi --}}
+                        <div class="tab-pane fade show active" id="info-pane" role="tabpanel" aria-labelledby="info-tab">
+                            <div class="bg-white p-3 rounded shadow-sm">
+                                <div id="modal-url-section" class="mt-1">
+                                    <h6 class="mb-1">Nomor Surat</h6>
+                                    <div class="input-group mb-3">
+                                        <input type="text" id="modal-letter-number" class="form-control bg-light" readonly>
+                                    </div>
+
+                                    <div id="url-container" class="d-none">
+                                        <h6 class="mb-1">URL Penyelesaian</h6>
+                                        <div class="input-group mb-2">
+                                            <input type="text" id="modal-url" class="form-control" readonly>
+                                            <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('#modal-url')">Salin</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Informasi Klien</h6>
+                                        <hr class="mt-0 mb-2">
+                                        <p class="mb-1"><strong>Nama:</strong> <span id="modal-client-name"></span></p>
+                                        <p class="mb-1"><strong>Telepon:</strong> <span id="modal-client-phone"></span></p>
+                                        <p class="mb-1"><strong>Instansi:</strong> <span id="modal-institution"></span></p>
+                                        <p class="mb-1"><strong>Alamat:</strong> <span id="modal-address"></span></p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Informasi Transaksi</h6>
+                                        <hr class="mt-0 mb-2">
+                                        <p class="mb-1"><strong>Status:</strong> <span id="modal-status"></span></p>
+                                        <p class="mb-1"><strong>Tanggal Transaksi:</strong> <span id="modal-date"></span></p>
+                                    </div>
+                                </div>
+                                <h6 class="mt-3">Detail Perangkat</h6>
+                                <hr class="mt-0 mb-2">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Perangkat</th>
+                                            <th>Kondisi</th>
+                                            <th class="text-end">Jumlah</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="modal-device-details"></tbody>
+                                </table>
                             </div>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Informasi Klien</h6>
-                            <hr class="mt-0 mb-2">
-                            <p class="mb-1"><strong>Nama:</strong> <span id="modal-client-name"></span></p>
-                            <p class="mb-1"><strong>Telepon:</strong> <span id="modal-client-phone"></span></p>
-                            <p class="mb-1"><strong>Instansi:</strong> <span id="modal-institution"></span></p>
-                            <p class="mb-1"><strong>Alamat:</strong> <span id="modal-address"></span></p>
+
+                        {{-- PANEL 2: Pratinjau Dokumen (Render PDF via PDF.js) --}}
+                        <div class="tab-pane fade" id="preview-doc-pane" role="tabpanel" aria-labelledby="preview-doc-tab">
+                            <div class="bg-white p-3 rounded shadow-sm">
+                                
+                                {{-- Preview Single (Hanya Draf Surat) --}}
+                                <div id="detail-single-preview-container" style="display: none; height: 100%; max-height: 60vh; overflow-y: auto;">
+                                    <p class="detail-loading-message text-center text-muted p-4">Memuat dokumen...</p>
+                                    <div id="detail-single-pdf-content"></div>
+                                </div>
+
+                                {{-- Preview Ganda (Draf vs Dokumen Tertanda) --}}
+                                <div id="detail-tabbed-preview-container" style="display: none;">
+                                    <ul class="nav nav-tabs" id="detailDocumentTab" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active py-1 px-3" id="detail-draf-tab" data-bs-toggle="tab" data-bs-target="#detail-draf-pane" type="button" role="tab" aria-controls="detail-draf-pane" aria-selected="true">Draf Surat</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link py-1 px-3" id="detail-tertanda-tab" data-bs-toggle="tab" data-bs-target="#detail-tertanda-pane" type="button" role="tab" aria-controls="detail-tertanda-pane" aria-selected="false">Surat Tertanda</button>
+                                        </li>
+                                    </ul>
+                                    <div class="tab-content pt-2" id="detailDocumentTabContent">
+                                        <div class="tab-pane fade show active" id="detail-draf-pane" role="tabpanel" aria-labelledby="detail-draf-tab" tabindex="0" style="max-height: 55vh; overflow-y: auto;">
+                                            <p class="detail-loading-message text-center text-muted p-4">Memuat draf...</p>
+                                            <div id="detail-draf-pdf-content"></div>
+                                        </div>
+                                        <div class="tab-pane fade" id="detail-tertanda-pane" role="tabpanel" aria-labelledby="detail-tertanda-tab" tabindex="0" style="max-height: 55vh; overflow-y: auto;">
+                                            <p class="detail-loading-message text-center text-muted p-4">Memuat surat tertanda...</p>
+                                            <div id="detail-tertanda-pdf-content"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <h6>Informasi Transaksi</h6>
-                            <hr class="mt-0 mb-2">
-                            <p class="mb-1"><strong>Status:</strong> <span id="modal-status"></span></p>
-                            <p class="mb-1"><strong>Tanggal Transaksi:</strong> <span id="modal-date"></span></p>
-                        </div>
+
                     </div>
-                    <h6 class="mt-3">Detail Perangkat</h6>
-                    <hr class="mt-0 mb-2">
-                    <table class="table table-sm table-striped">
-                        <thead>
-                            <tr>
-                                <th>Perangkat</th>
-                                <th>Kondisi</th>
-                                <th class="text-end">Jumlah</th>
-                            </tr>
-                        </thead>
-                        <tbody id="modal-device-details"></tbody>
-                    </table>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                <div class="modal-footer py-2 px-3">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Tutup</button>
                 </div>
             </div>
         </div>
@@ -431,17 +536,16 @@
                                             data-letter-id="{{ $letter->id }}"
                                             data-client-id="{{ $letter->client->id }}"
                                             data-details='{!! json_encode($letter->details->map(function($d) { 
-                                                // [LOGIKA DI VIEW] Menentukan kondisi berdasarkan status letterdetail
                                                 $condVal = ($d->status == 1) 
                                                     ? (($d->withdrawcondition == 1) ? "Rusak" : "Bekas") 
                                                     : ($d->storedDevice?->condition ?? "N/A");
                                                 return [
-                                                    'id' => $d->storedDevice->id, 
-                                                    'name' => ($d->storedDevice?->device?->brand ?? 'N/A') . ' ' . ($d->storedDevice?->device?->model ?? ''), 
-                                                    'condition' => $condVal, 
-                                                    'quantity' => $d->quantity, 
-                                                    'status' => $d->status, 
-                                                    'source' => 'letter'
+                                                    "id" => $d->storedDevice->id, 
+                                                    "name" => ($d->storedDevice?->device?->brand ?? "N/A") . " " . ($d->storedDevice?->device?->model ?? ""), 
+                                                    "condition" => $condVal, 
+                                                    "quantity" => $d->quantity, 
+                                                    "status" => $d->status, 
+                                                    "source" => "letter"
                                                 ]; 
                                             })) !!}'
                                             data-client-profile='{!! json_encode($letter->client->profile) !!}'>
@@ -499,56 +603,51 @@
         const allUsers = @json($users);
         const CSRF_TOKEN = "{{ csrf_token() }}";
 
-// =======================================================================
-// FUNGSI copyToClipboard YANG SUDAH DIPERBAIKI
-// =======================================================================
-function copyToClipboard(selector) {
-    // 1. Dapatkan semua elemen yang dibutuhkan dari modal
-    const urlInput = document.querySelector(selector);
-    const transactionIdSpan = document.getElementById('modal-transaction-id');
-    const clientNameSpan = document.getElementById('modal-client-name');
-    const institutionSpan = document.getElementById('modal-institution');
-    const dateSpan = document.getElementById('modal-date');
-    const letterNumberInput = document.getElementById('modal-letter-number'); // Mengambil elemen input
+        // Inisialisasi PDF.js Worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-    // PERBAIKAN #1: Deklarasikan variabel yang hilang
-    const deviceDetailsTbody = document.getElementById('modal-device-details');
+        // =======================================================================
+        // FUNGSI copyToClipboard
+        // =======================================================================
+        function copyToClipboard(selector) {
+            const urlInput = document.querySelector(selector);
+            const transactionIdSpan = document.getElementById('modal-transaction-id');
+            const clientNameSpan = document.getElementById('modal-client-name');
+            const institutionSpan = document.getElementById('modal-institution');
+            const dateSpan = document.getElementById('modal-date');
+            const letterNumberInput = document.getElementById('modal-letter-number');
+            const deviceDetailsTbody = document.getElementById('modal-device-details');
 
-    // 2. Validasi dengan variabel yang sudah benar
-    if (!urlInput || !transactionIdSpan || !clientNameSpan || !institutionSpan || !dateSpan || !deviceDetailsTbody || !letterNumberInput) {
-        toastr.error('Gagal memuat detail untuk disalin. Elemen tidak ditemukan.');
-        return;
-    }
+            if (!urlInput || !transactionIdSpan || !clientNameSpan || !institutionSpan || !dateSpan || !deviceDetailsTbody || !letterNumberInput) {
+                toastr.error('Gagal memuat detail untuk disalin. Elemen tidak ditemukan.');
+                return;
+            }
 
-    const url = urlInput.value;
-    if (!url) {
-        return;
-    }
+            const url = urlInput.value;
+            if (!url) {
+                return;
+            }
 
-    const transactionId = transactionIdSpan.innerText.trim();
-    const clientName = clientNameSpan.innerText.trim();
-    const institution = institutionSpan.innerText.trim();
-    const date = dateSpan.innerText.trim();
+            const transactionId = transactionIdSpan.innerText.trim();
+            const clientName = clientNameSpan.innerText.trim();
+            const institution = institutionSpan.innerText.trim();
+            const date = dateSpan.innerText.trim();
+            const letterNumber = letterNumberInput.value.trim();
 
-    // PERBAIKAN #2: Gunakan .value untuk mengambil data dari <input>
-    const letterNumber = letterNumberInput.value.trim();
+            let deviceList = [];
+            const deviceRows = deviceDetailsTbody.querySelectorAll('tr');
+            deviceRows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 3) {
+                    const deviceName = cells[0].innerText.trim();
+                    const condition = cells[1].innerText.trim();
+                    const quantity = cells[2].innerText.trim();
+                    deviceList.push(`- ${quantity}x ${deviceName} (${condition})`);
+                }
+            });
+            const deviceText = deviceList.length > 0 ? deviceList.join('\n') : 'Tidak ada detail perangkat.';
 
-    // 3. Ambil detail perangkat dari tabel
-    let deviceList = [];
-    const deviceRows = deviceDetailsTbody.querySelectorAll('tr');
-    deviceRows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length === 3) {
-            const deviceName = cells[0].innerText.trim();
-            const condition = cells[1].innerText.trim();
-            const quantity = cells[2].innerText.trim();
-            deviceList.push(`- ${quantity}x ${deviceName} (${condition})`);
-        }
-    });
-    const deviceText = deviceList.length > 0 ? deviceList.join('\n') : 'Tidak ada detail perangkat.';
-
-    // 4. Buat format pesan
-    const messageToCopy = `
+            const messageToCopy = `
 ✨ *Ringkasan Transaksi* ✨
 ---------------------------------
 *ID Transaksi*: ${transactionId}
@@ -565,30 +664,80 @@ ${deviceText}
 
 Silakan lanjutkan proses penyelesaian berdasarkan Nomor Surat melalui tautan berikut:
 👉 ${url}
-    `.trim();
+            `.trim();
 
-    // 5. Salin pesan ke clipboard
-    navigator.clipboard.writeText(messageToCopy).then(() => {
-        toastr.success('Detail transaksi & tautan berhasil disalin!');
-        const copyButton = document.querySelector(`button[onclick="copyToClipboard('${selector}')"]`);
-        if (copyButton) {
-            const originalHtml = copyButton.innerHTML;
-            copyButton.innerHTML = `<i class="ti ti-check me-2"></i> Berhasil Disalin`;
-            copyButton.classList.add('btn-success');
-            copyButton.classList.remove('btn-outline-secondary');
-            
-            setTimeout(() => {
-                copyButton.innerHTML = originalHtml;
-                copyButton.classList.add('btn-outline-secondary');
-                copyButton.classList.remove('btn-success');
-            }, 3000);
+            navigator.clipboard.writeText(messageToCopy).then(() => {
+                toastr.success('Detail transaksi & tautan berhasil disalin!');
+                const copyButton = document.querySelector(`button[onclick="copyToClipboard('${selector}')"]`);
+                if (copyButton) {
+                    const originalHtml = copyButton.innerHTML;
+                    copyButton.innerHTML = `<i class="ti ti-check me-2"></i> Berhasil Disalin`;
+                    copyButton.classList.add('btn-success');
+                    copyButton.classList.remove('btn-outline-secondary');
+                    
+                    setTimeout(() => {
+                        copyButton.innerHTML = originalHtml;
+                        copyButton.classList.add('btn-outline-secondary');
+                        copyButton.classList.remove('btn-success');
+                    }, 3000);
+                }
+            }).catch(err => {
+                console.error('Gagal menyalin ke clipboard: ', err);
+                toastr.error('Gagal menyalin pesan. Coba lagi.');
+            });
         }
-    }).catch(err => {
-        console.error('Gagal menyalin ke clipboard: ', err);
-        toastr.error('Gagal menyalin pesan. Coba lagi.');
-    });
-}
 
+        // =======================================================================
+        // LOGIKA RENDERING PDF PREVIEW DI MODAL DETAIL
+        // =======================================================================
+        let detailDrafUrl = null;
+        let detailSignedUrl = null;
+        let detailStatus = null;
+        const RENDER_SCALE_FACTOR = 0.95;
+
+        async function renderDetailPdfToContainer(pdfUrl, container, loadingElement) {
+            if (!pdfUrl) {
+                loadingElement.textContent = 'Dokumen tidak ditemukan atau tidak tersedia.';
+                loadingElement.style.display = 'block';
+                return;
+            }
+            try {
+                loadingElement.style.display = 'block';
+                loadingElement.textContent = 'Memuat dokumen...';
+                container.innerHTML = '';
+
+                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                const pdfDoc = await loadingTask.promise;
+                const parentWidth = document.getElementById('detailModalBody').clientWidth;
+                const containerWidth = parentWidth > 0 ? parentWidth - 40 : 750;
+
+                for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                    const page = await pdfDoc.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 1 });
+                    const devicePixelRatio = window.devicePixelRatio || 1;
+                    const targetCssWidth = containerWidth * RENDER_SCALE_FACTOR;
+                    const renderScale = (targetCssWidth / viewport.width) * devicePixelRatio;
+                    const scaledViewport = page.getViewport({ scale: renderScale });
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.height = scaledViewport.height;
+                    canvas.width = scaledViewport.width;
+                    canvas.style.width = `${targetCssWidth}px`;
+                    canvas.style.height = `${scaledViewport.height / devicePixelRatio}px`;
+                    canvas.style.display = 'block';
+                    canvas.style.margin = '0 auto 15px auto';
+                    canvas.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
+                    canvas.style.backgroundColor = '#fff';
+                    const renderContext = { canvasContext: ctx, viewport: scaledViewport };
+                    await page.render(renderContext).promise;
+                    container.appendChild(canvas);
+                }
+                loadingElement.style.display = 'none';
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                loadingElement.textContent = 'Gagal memuat dokumen. Detail: ' + error.message;
+            }
+        }
 
         $(document).ready(function () {
             // Inisialisasi Tabel Utama
@@ -616,56 +765,124 @@ Silakan lanjutkan proses penyelesaian berdasarkan Nomor Surat melalui tautan ber
             });
             
             $('#transactionDetailModal').on('show.bs.modal', function (event) {
-    var button = $(event.relatedTarget);
-    var modal = $(this);
+                var button = $(event.relatedTarget);
+                var modal = $(this);
 
-    const data = button.data();
-    const detailsData = data.details;
+                // Reset modal tabs state
+                bootstrap.Tab.getOrCreateInstance(document.getElementById('info-tab')).show();
 
-    modal.find('#modal-transaction-id').text(data.transactionId); 
-    modal.find('#modal-client-name').text(data.clientName);       
-    modal.find('#modal-client-phone').text(data.clientPhone);
-    modal.find('#modal-institution').text(data.institution);
-    modal.find('#modal-address').text(data.address);
-    modal.find('#modal-date').text(data.date);
+                // Clear previous documents
+                document.getElementById('detail-single-pdf-content').innerHTML = '';
+                document.getElementById('detail-draf-pdf-content').innerHTML = '';
+                document.getElementById('detail-tertanda-pdf-content').innerHTML = '';
 
-    modal.find('#modal-letter-number').val(data.letterNumber || 'Tidak ada surat');
-    modal.find('#modal-url').val(data.url);
+                const data = button.data();
+                const detailsData = data.details;
 
-    const urlContainer = $('#url-container');
-    if (data.status === 'Pending' && data.url) {
-        urlContainer.removeClass('d-none');
-    } else {
-        urlContainer.addClass('d-none');
-    }
+                modal.find('#modal-transaction-id').text(data.transactionId); 
+                modal.find('#modal-client-name').text(data.clientName);       
+                modal.find('#modal-client-phone').text(data.clientPhone);
+                modal.find('#modal-institution').text(data.institution);
+                modal.find('#modal-address').text(data.address);
+                modal.find('#modal-date').text(data.date);
 
-    if (data.status) {
-        let statusBadge = '';
-        switch (data.status) {
-            case 'Deployed': statusBadge = '<span class="badge bg-success">Deployed</span>'; break;
-            case 'Intake': statusBadge = '<span class="badge bg-primary">Intake</span>'; break;
-            case 'Pending': statusBadge = '<span class="badge bg-warning text-dark">Pending</span>'; break;
-            case 'Revoked': statusBadge = '<span class="badge bg-danger">Revoked</span>'; break;
-            default: statusBadge = `<span class="badge bg-secondary">${data.status}</span>`;
-        }
-        modal.find('#modal-status').html(statusBadge).parent().show();
-    } else {
-        modal.find('#modal-status').parent().hide();
-    }
+                modal.find('#modal-letter-number').val(data.letterNumber || 'Tidak ada surat');
+                modal.find('#modal-url').val(data.url);
 
-    var detailsContainer = modal.find('#modal-device-details');
-    detailsContainer.empty();
-    
-    if (Array.isArray(detailsData) && detailsData.length > 0) {
-        detailsData.forEach(function(item) {
-            var row = `<tr><td>${item.device || 'N/A'}</td><td><span class="badge bg-light-secondary">${item.condition || 'N/A'}</span></td><td class="text-end">${item.quantity || '0'}</td></tr>`;
-            detailsContainer.append(row);
-        });
-    } else {
-        var noDataRow = '<tr><td colspan="3" class="text-center text-muted">Tidak ada detail perangkat.</td></tr>';
-        detailsContainer.append(noDataRow);
-    }
-});
+                const urlContainer = $('#url-container');
+                if (data.status === 'Pending' && data.url) {
+                    urlContainer.removeClass('d-none');
+                } else {
+                    urlContainer.addClass('d-none');
+                }
+
+                detailDrafUrl = data.letterPdfUrl;
+                detailSignedUrl = data.letterSignedPdfUrl;
+                detailStatus = data.status;
+
+                if (detailDrafUrl) {
+                    $('#document-tab-li').show();
+                } else {
+                    $('#document-tab-li').hide();
+                }
+
+                const hasTarik = Array.isArray(detailsData) && detailsData.some(d => d.status === 1);
+                const hasSerah = Array.isArray(detailsData) && detailsData.some(d => d.status === 0);
+                
+                const isHybridTransaction = hasTarik && hasSerah && data.letterNumber && data.letterNumber !== 'Tidak ada surat';
+                const isPureWithdrawalTransaction = hasTarik && !hasSerah && data.letterNumber && data.letterNumber !== 'Tidak ada surat';
+
+                if (data.status) {
+                    let statusBadge = '';
+                    switch (data.status) {
+                        case 'Deployed': 
+                            statusBadge = isHybridTransaction 
+                                ? '<span class="badge bg-success">Deployed & Intake</span>' 
+                                : '<span class="badge bg-success">Deployed</span>'; 
+                            break;
+                        case 'Intake': statusBadge = '<span class="badge bg-primary">Intake</span>'; break;
+                        case 'Pending': statusBadge = '<span class="badge bg-warning text-dark">Pending</span>'; break;
+                        case 'Revoked': statusBadge = '<span class="badge bg-danger">Revoked</span>'; break;
+                        default: statusBadge = `<span class="badge bg-secondary">${data.status}</span>`;
+                    }
+                    modal.find('#modal-status').html(statusBadge).parent().show();
+                } else {
+                    modal.find('#modal-status').parent().hide();
+                }
+
+                var detailsContainer = modal.find('#modal-device-details');
+                detailsContainer.empty();
+                
+                if (Array.isArray(detailsData) && detailsData.length > 0) {
+                    detailsData.forEach(function(item) {
+                        let itemBadge = '';
+                        if (data.letterNumber && data.letterNumber !== 'Tidak ada surat') {
+                            if (item.status === 1) {
+                                itemBadge = ' <span class="badge bg-light-danger text-danger" style="font-size: 10px; padding: 2px 6px;">Tarik</span>';
+                            } else {
+                                itemBadge = ' <span class="badge bg-light-primary text-primary" style="font-size: 10px; padding: 2px 6px;">Serah</span>';
+                            }
+                        }
+                        var row = `<tr><td>${item.device || 'N/A'}${itemBadge}</td><td><span class="badge bg-light-secondary">${item.condition || 'N/A'}</span></td><td class="text-end">${item.quantity || '0'}</td></tr>`;
+                        detailsContainer.append(row);
+                    });
+                } else {
+                    var noDataRow = '<tr><td colspan="3" class="text-center text-muted">Tidak ada detail perangkat.</td></tr>';
+                    detailsContainer.append(noDataRow);
+                }
+            });
+
+            // Trigger Render PDF ketika Tab Dokumen Dipilih oleh Pengguna
+            $('#preview-doc-tab').on('shown.bs.tab', function () {
+                if (detailStatus === 'Deployed' && detailSignedUrl) {
+                    document.getElementById('detail-single-preview-container').style.display = 'none';
+                    document.getElementById('detail-tabbed-preview-container').style.display = 'block';
+                    
+                    bootstrap.Tab.getOrCreateInstance(document.getElementById('detail-draf-tab')).show();
+                    renderDetailPdfToContainer(detailDrafUrl, document.getElementById('detail-draf-pdf-content'), document.querySelector('#detail-draf-pane .detail-loading-message'));
+                    renderDetailPdfToContainer(detailSignedUrl, document.getElementById('detail-tertanda-pdf-content'), document.querySelector('#detail-tertanda-pane .detail-loading-message'));
+                } else {
+                    document.getElementById('detail-single-preview-container').style.display = 'block';
+                    document.getElementById('detail-tabbed-preview-container').style.display = 'none';
+                    
+                    renderDetailPdfToContainer(detailDrafUrl, document.getElementById('detail-single-pdf-content'), document.querySelector('#detail-single-preview-container .detail-loading-message'));
+                }
+            });
+
+            // Hapus isi Canvas PDF saat Modal Ditutup demi menjaga performa memori
+            $('#transactionDetailModal').on('hidden.bs.modal', function () {
+                document.getElementById('detail-single-pdf-content').innerHTML = '';
+                document.getElementById('detail-draf-pdf-content').innerHTML = '';
+                document.getElementById('detail-tertanda-pdf-content').innerHTML = '';
+                document.querySelectorAll('.detail-loading-message').forEach(el => {
+                    el.textContent = 'Memuat dokumen...';
+                    el.style.display = 'block';
+                });
+                detailDrafUrl = null;
+                detailSignedUrl = null;
+                detailStatus = null;
+            });
+
             function debounce(func, delay) {
                 let timeout;
                 return function(...args) {
@@ -756,7 +973,6 @@ Silakan lanjutkan proses penyelesaian berdasarkan Nomor Surat melalui tautan ber
                         const item = aggregatedCart[key];
                         const deleteButton = (item.source !== 'letter') ? `<button type="button" class="btn btn-sm btn-danger btn-delete-cart-group" data-indices='${JSON.stringify(item.originalIndices)}' title="Hapus"><i class="ti ti-x"></i></button>` : '';
                         
-                        // [LOGIKA DI VIEW] Tampilkan badge "Tarik" (Status 1) / "Serah" (Status 0) untuk item sumber surat
                         let badgeHtml = '';
                         if (item.source === 'letter') {
                             if (item.status === 1) {

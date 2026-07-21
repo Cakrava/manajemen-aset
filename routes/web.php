@@ -30,6 +30,10 @@ use App\Models\Transaction;
 */
 Route::get('/', [FrontPageController::class, 'index'])->name('front.index') ;
 Route::get('login', [AuthController::class, 'login'])->name('auth.login') ;
+Route::name('login')->get('/login-redirect', function () {
+    return redirect()->route('auth.login');
+});
+Route::post('/stored-device/generate-initial', [App\Http\Controllers\StoredDeviceController::class, 'generateInitial'])->name('panel.stored-device.generateInitial');
 Route::get('/register/invitation', [AuthController::class, 'showRegistrationForm'])->name('register.invitation');
 Route::post('/register/invitation', [AuthController::class, 'register'])->name('auth.register');
 Route::post('/complete-letter-submission', [TransactionController::class, 'processSubmission'])->name('letter.process.completion');

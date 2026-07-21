@@ -232,4 +232,6 @@ public function bulkDestroy(Request $request)
         return response()->json(['message' => 'Terjadi kesalahan saat proses penghapusan massal: ' . $e->getMessage()], 500);
     }
 }
+
+
 }

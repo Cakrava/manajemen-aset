@@ -12,7 +12,6 @@ use App\Models\Device;
 use App\Models\StoredDevice;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
-
 use Illuminate\Support\Facades\Log;
 use App\Models\OtherSourceProfile;
 use App\Models\TransactionDetail;
@@ -25,12 +24,12 @@ class TransactionController extends Controller
 {
     public function index()
     {
-        $transactions = Transaction::with('client.profile', 'otherSourceProfile', 'details.storedDevice.device','letter')
+        $transactions = Transaction::with('client.profile', 'otherSourceProfile', 'details.storedDevice.device', 'letter.details')
             ->where('instalation_status', '!=', 'Revoked')
             ->latest()
             ->get();
     
-        $revokedTransactions = Transaction::with('client.profile', 'otherSourceProfile', 'details.storedDevice.device','letter')
+        $revokedTransactions = Transaction::with('client.profile', 'otherSourceProfile', 'details.storedDevice.device', 'letter.details')
             ->where('instalation_status', 'Revoked')
             ->latest()
             ->get();
@@ -49,7 +48,7 @@ class TransactionController extends Controller
         $users = User::with('profile')
             ->whereHas('profile')
             ->where('role', 'user')
-            ->where('status','active')
+            ->where('status', 'active')
             ->get();
     
         $tokenLinks = [];
@@ -61,7 +60,9 @@ class TransactionController extends Controller
             if (is_array($decoded)) {
                 $tokenLinks = $decoded;
             }
-        } if (!empty($tokenLinks)) {
+        } 
+        
+        if (!empty($tokenLinks)) {
             $transactions->each(function ($transaction) use ($tokenLinks) {
                 if (isset($tokenLinks[$transaction->id])) {
                     $transaction->access_url = $tokenLinks[$transaction->id]['url'];
@@ -81,7 +82,6 @@ class TransactionController extends Controller
             'revokedTransactions'
         ));
     }
-    
 
     public function searchOtherSource(Request $request)
     {
@@ -92,7 +92,6 @@ class TransactionController extends Controller
         }
 
         $keywords = explode(' ', strtolower($query));
-
         $profilesQuery = \App\Models\OtherSourceProfile::query();
 
         $profilesQuery->where(function ($q) use ($keywords) {
@@ -103,7 +102,6 @@ class TransactionController extends Controller
         });
 
         $profiles = $profilesQuery->limit(10)->get();
-
         return response()->json($profiles);
     }
 
@@ -133,7 +131,6 @@ class TransactionController extends Controller
         return response()->json(['devices' => $formattedDevices]);
     }
 
-  
     protected function getInstallationStatus(string $transactionType): string
     {
         return $transactionType === 'in' ? 'Intake' : 'Pending';
@@ -238,15 +235,29 @@ class TransactionController extends Controller
             'transaction_cart.*.quantity' => 'required|integer|min:1',
             'transaction_cart.*.source' => 'required|string|in:letter',
             'transaction_cart.*.condition' => 'required|string',
+            'transaction_cart.*.status' => 'nullable|integer|in:0,1',
         ]);
     
         DB::beginTransaction();
         try {
-            $transactionType = 'out';
-            $instalationStatus = $this->getInstallationStatus($transactionType);
+            // [LOGIKA DI CONTROLLER] Deteksi secara dinamis jenis transaksi awal dari isi surat
+            $cart = $request->input('transaction_cart');
+            $hasSerah = collect($cart)->contains('status', 0);
+            $hasTarik = collect($cart)->contains('status', 1);
+
+            if (!$hasSerah && $hasTarik) {
+                // Surat hanya berisi penarikan (Intake / In)
+                $transactionType = 'in';
+            } else {
+                // Surat berisi penyerahan saja atau campuran (Hybrid / Out)
+                $transactionType = 'out';
+            }
+
+            // Semua transaksi dari surat berstatus awal Pending menunggu upload PDF
+            $instalationStatus = 'Pending';
     
             $transaction = Transaction::create([
-                'transaction_number'     => $request->input('transaction_id'),
+                'transaction_number' => $request->input('transaction_id'),
                 'instalation_status' => $instalationStatus,
                 'transaction_type'   => $transactionType,
                 'client_id'          => $request->input('client_id'),
@@ -254,7 +265,7 @@ class TransactionController extends Controller
                 'letter_id'          => $request->input('letter_id'),
             ]);
     
-            foreach ($request->input('transaction_cart') as $item) {
+            foreach ($cart as $item) {
                 \App\Models\TransactionDetail::create([
                     'transaction_id'   => $transaction->id,
                     'stored_device_id' => $item['id'],
@@ -263,13 +274,11 @@ class TransactionController extends Controller
             }
     
             $accessUrl = null;
-    
             if ($transaction->instalation_status === 'Pending') {
                 $accessUrl = $this->generateLink($transaction);
             }
     
             $letter = Letters::find($request->input('letter_id'));
-    
             if ($letter) {
                 $letter->status = 'Open';
                 $letter->save();
@@ -308,22 +317,21 @@ class TransactionController extends Controller
         DB::beginTransaction();
         try {
             $otherSourceProfile = OtherSourceProfile::create($request->input('other_source_profile'));
-
             $transactionType = $request->input('flow_type');
             $instalationStatus = $this->getInstallationStatus($transactionType);
 
             $transaction = Transaction::create([
-                'transaction_number'     => $request->input('transaction_id'),
+                'transaction_number' => $request->input('transaction_id'),
                 'instalation_status' => $instalationStatus,
                 'transaction_type'   => $transactionType,
                 'client_id'          => null,
                 'other_source_id'    => $otherSourceProfile->id,
             ]);
+            
             $transactionId = $transaction->id;
             $this->processCartItems($request->input('transaction_cart'), $transactionId, $transactionType);
 
             $accessUrl = null;
-
             if ($transaction->instalation_status === 'Pending') {
                 $accessUrl = $this->generateLink($transaction);
             }
@@ -367,17 +375,17 @@ class TransactionController extends Controller
             $instalationStatus = $this->getInstallationStatus($transactionType);
 
             $transaction = Transaction::create([
-                'transaction_number'     => $request->input('transaction_id'),
+                'transaction_number' => $request->input('transaction_id'),
                 'instalation_status' => $instalationStatus,
                 'transaction_type'   => $transactionType,
                 'client_id'          => $request->input('client_id'),
                 'other_source_id'    => null,
             ]);
+            
             $transactionId = $transaction->id;
             $this->processCartItems($request->input('transaction_cart'), $transactionId, $transactionType, $request->input('client_id'));
 
             $accessUrl = null;
-
             if ($transaction->instalation_status === 'Pending') {
                 $accessUrl = $this->generateLink($transaction);
             }
@@ -420,17 +428,17 @@ class TransactionController extends Controller
             $instalationStatus = $this->getInstallationStatus($transactionType);
 
             $transaction = Transaction::create([
-                'transaction_number'     => $request->input('transaction_id'),
+                'transaction_number' => $request->input('transaction_id'),
                 'instalation_status' => $instalationStatus,
                 'transaction_type'   => $transactionType,
                 'client_id'          => $request->input('client_id'),
                 'other_source_id'    => null,
             ]);
+            
             $transactionId = $transaction->id;
             $this->processCartItems($request->input('transaction_cart'), $transactionId, $transactionType, $request->input('client_id'));
 
             $accessUrl = null;
-
             if ($transaction->instalation_status === 'Pending') {
                 $accessUrl = $this->generateLink($transaction);
             }
@@ -452,7 +460,6 @@ class TransactionController extends Controller
     private function generateLink(Transaction $transaction)
     {
         $jsonFilePath = storage_path('app/temporary_url.json');
-        
         Log::debug('Mulai generateLink untuk transaction ID (primary key): ' . $transaction->id);
 
         if (!File::exists($jsonFilePath)) {
@@ -489,15 +496,12 @@ class TransactionController extends Controller
         }
 
         $linkData = json_decode(File::get($jsonFilePath), true);
-
         if (empty($linkData) || !is_array($linkData)) {
             Log::warning('Akses gagal: File temporary_url.json kosong atau rusak.');
             abort(404, 'Halaman tidak ditemukan (File Rusak).');
         }
 
         $foundTransactionId = null;
-        $linkData = json_decode(File::get(storage_path('app/temporary_url.json')), true);
-
         foreach ($linkData as $transaction_id => $details) {
             if (isset($details['token']) && $details['token'] === $token) {
                 $foundTransactionId = $transaction_id;
@@ -510,7 +514,6 @@ class TransactionController extends Controller
         }
 
         $transaction = Transaction::where('id', $foundTransactionId)->first();
-
         if (!$transaction || $transaction->instalation_status !== 'Pending') {
             abort(404, 'Halaman tidak ditemukan atau link sudah tidak berlaku.');
         }
@@ -533,8 +536,8 @@ class TransactionController extends Controller
             'transaction_id.exists' => 'ID Transaksi tidak valid atau tidak ditemukan.',
             'nomor_surat.exists' => 'Nomor Surat tidak ditemukan dalam sistem.',
         ]);
+        
         Log::info("Langkah 1: Validasi input berhasil.", ['session_id' => $logSessionId]);
-
         DB::beginTransaction();
         Log::info("Transaksi database dimulai.", ['session_id' => $logSessionId]);
         
@@ -562,34 +565,27 @@ class TransactionController extends Controller
             $letter->save();
             Log::info("Langkah 4: File lampiran berhasil diunggah.", ['session_id' => $logSessionId]);
 
-            // ========================================================================
-            // LANGKAH 5: PROSES MANAJEMEN INVENTARIS DUA ARAH (MODIFIKASI)
-            // ========================================================================
             Log::info("Langkah 5: Memulai proses manajemen inventaris dua arah.", ['session_id' => $logSessionId]);
-
             $transactionDetails = TransactionDetail::where('transaction_id', $transaction->id)->get();
             Log::info("Langkah 5a: Ditemukan " . $transactionDetails->count() . " item detail transaksi.", ['session_id' => $logSessionId]);
 
             $deployedDeviceHeader = DeploymentDevice::firstOrCreate(['client_id' => $transaction->client_id]);
             Log::info("Langkah 5b: Header perangkat terpasang (DeployedDevice) siap.", ['deployment_id' => $deployedDeviceHeader->id]);
 
-            // Iterasi untuk memisahkan logika penyerahan (0) dan penarikan (1)
+            $hasSerah = false;
+            $hasTarik = false;
+
             foreach ($transactionDetails as $detail) {
                 Log::info("Langkah 5c: Memproses detail item...", ['stored_device_id' => $detail->stored_device_id, 'quantity' => $detail->quantity]);
                 
-                // Cari detail surat aslinya untuk mendeteksi status alirannya (0 atau 1)
                 $letterDetail = \App\Models\LetterDetail::where('letter_id', $transaction->letter_id)
                     ->where('stored_device_id', $detail->stored_device_id)
                     ->first();
                 
-                // Default status ke 0 (Penyerahan) jika tidak bersumber dari Surat
                 $status = $letterDetail ? $letterDetail->status : 0;
 
                 if ($status == 0) {
-                    // -------------------------------------------------------------
-                    // LOGIKA ALIRAN 0: PENYERAHAN (HANDOVER)
-                    // -------------------------------------------------------------
-                    // 1. Kurangi stok dari gudang (StoredDevice)
+                    $hasSerah = true;
                     $storedDevice = StoredDevice::lockForUpdate()->findOrFail($detail->stored_device_id);
                     if ($storedDevice->stock < $detail->quantity) {
                         DB::rollBack();
@@ -599,7 +595,6 @@ class TransactionController extends Controller
                     $storedDevice->decrement('stock', $detail->quantity);
                     Log::info("--> [PENYERAHAN] Stok StoredDevice ID: {$storedDevice->id} berhasil dikurangi.");
 
-                    // 2. Tambah kuantitas ke DeployedDeviceDetail milik klien
                     $deployedDetail = DeploymentDeviceDetail::firstOrNew([
                         'deployment_id'    => $deployedDeviceHeader->id,
                         'stored_device_id' => $detail->stored_device_id,
@@ -609,10 +604,7 @@ class TransactionController extends Controller
                     Log::info("--> [PENYERAHAN] DeployedDeviceDetail berhasil ditambahkan.");
 
                 } else {
-                    // -------------------------------------------------------------
-                    // LOGIKA ALIRAN 1: PENARIKAN (WITHDRAWAL)
-                    // -------------------------------------------------------------
-                    // 1. Kurangi/hapus catatan alokasi unit milik klien (DeploymentDeviceDetail)
+                    $hasTarik = true;
                     $deployedDetail = DeploymentDeviceDetail::where('deployment_id', $deployedDeviceHeader->id)
                         ->where('stored_device_id', $detail->stored_device_id)
                         ->lockForUpdate()
@@ -627,9 +619,7 @@ class TransactionController extends Controller
                     }
                     Log::info("--> [PENARIKAN] DeployedDeviceDetail milik klien berhasil dikurangi.");
 
-                    // 2. Tambahkan kembali barang ke gudang (StoredDevice) sesuai dengan withdrawcondition (0 = Bekas, 1 = Rusak)
-                    $targetCondition = ($letterDetail->withdrawcondition == 1) ? 'Rusak' : 'Bekas';
-                    
+                    $targetCondition = ($letterDetail && $letterDetail->withdrawcondition == 1) ? 'Rusak' : 'Bekas';
                     $originalStoredDevice = StoredDevice::findOrFail($detail->stored_device_id);
                     
                     $targetStoredDevice = StoredDevice::where('device_id', $originalStoredDevice->device_id)
@@ -652,7 +642,18 @@ class TransactionController extends Controller
             
             Log::info("Langkah 5 selesai: Manajemen inventaris dua arah berhasil diproses.", ['session_id' => $logSessionId]);
 
-            $transaction->instalation_status = 'Deployed';
+            // [LOGIKA DI CONTROLLER v1.1] Tentukan status instalasi dan tipe transaksi akhir secara dinamis
+            if ($hasSerah && $hasTarik) {
+                $transaction->instalation_status = 'Deployed'; // Hybrid (Di view akan dirender "Deployed & Intake")
+                $transaction->transaction_type = 'out';
+            } elseif ($hasTarik && !$hasSerah) {
+                $transaction->instalation_status = 'Intake';   // Hanya penarikan: Ubah status ke "Intake"
+                $transaction->transaction_type = 'in';         // Ubah tipe transaksi utama ke "In"
+            } else {
+                $transaction->instalation_status = 'Deployed'; // Hanya penyerahan: Ubah status ke "Deployed"
+                $transaction->transaction_type = 'out';
+            }
+
             $transaction->save();
             Log::info("Langkah 6: Status Transaksi berhasil diubah.", ['session_id' => $logSessionId]);
             
@@ -676,7 +677,7 @@ class TransactionController extends Controller
             ]);
 
             return redirect()->route('front.index')
-                ->withErrors(['submit' => 'Terjadi kesalahan internal pada sistem. Tim kami telah diberitahu.']);
+                ->withErrors(['submit' => 'Terjadi kesalahan internal pada sistem.']);
         }
     }
     
@@ -702,13 +703,11 @@ class TransactionController extends Controller
     private function removeLink($transactionId)
     {
         $jsonFilePath = storage_path('app/temporary_url.json');
-
         if (!File::exists($jsonFilePath)) {
             return; 
         }
 
         $data = json_decode(File::get($jsonFilePath), true);
-
         if (is_array($data) && isset($data[$transactionId])) {
             unset($data[$transactionId]);
             File::put($jsonFilePath, json_encode($data, JSON_PRETTY_PRINT));

@@ -177,7 +177,9 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="mb-3"><label for="device_id_readonly" class="form-label">Device ID</label><input type="text" class="form-control" id="device_id_readonly" readonly></div>
+                        <div class="mb-3">
+                            <!-- <label for="device_id_readonly" class="form-label">Device ID</label> -->
+                        <input type="text" hidden class="form-control" id="device_id_readonly" readonly></div>
                         <div class="row mb-3">
                             <div class="col-md-6"><label for="stock" class="form-label">Stock</label><input type="number" class="form-control" id="stock" name="stock" value="1" min="1"></div>
                             <div class="col-md-6">
