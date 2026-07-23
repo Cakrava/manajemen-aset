@@ -4,7 +4,7 @@
     <nav class="pc-sidebar">
         <div class="navbar-wrapper">
             <div class="m-header" style="margin-top : -30px; margin-bottom: 50px;">
-                <a href="../dashboard/index.html" class="b-brand text-primary">
+                <a href="{{ route('panel.dashboard') }}" class="b-brand text-primary">
                     <!-- ========   Change your logo from here   ============ -->
                     <h3 class="text-white">Komdigi</h3> <br> <small class="text-white">Network Management</small>
                     <!-- Anda bisa mengganti text Komdigi dengan logo image jika ada -->
