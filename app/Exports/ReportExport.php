@@ -85,6 +85,9 @@ class ReportExport implements FromCollection, WithHeadings, ShouldAutoSize, With
         foreach ($filterLabels as $key => $label) {
             if (!empty($this->filters[$key]) && is_array($this->filters[$key])) {
                 $values = array_map(function($value) {
+                    if ($value === 'hybrid') {
+                        return 'In & Out';
+                    }
                     return ucwords(str_replace('_', ' ', $value));
                 }, $this->filters[$key]);
                 $activeFilters[] = $label . ': ' . implode(', ', $values);
@@ -165,8 +168,28 @@ class ReportExport implements FromCollection, WithHeadings, ShouldAutoSize, With
             }
         };
 
+        $formatActivityFlow = function ($item) {
+            $info = resolve_transaction_activity($item);
+            return $info['activity_label'];
+        };
+
+        $formatDetailList = function ($item) {
+            $lines = collect($item['details'] ?? [])->map(function ($detail) use ($item) {
+                $brand = $detail['stored_device']['device']['brand'] ?? '-';
+                $status = resolve_transaction_detail_status($item, (int) ($detail['stored_device_id'] ?? 0));
+                if ($status === 1) {
+                    return $brand . ' (Tarik)';
+                }
+                if ($status === 0) {
+                    return $brand . ' (Serah)';
+                }
+                return $brand;
+            });
+            return $lines->implode("\n") ?: '-';
+        };
+
         $index = 0;
-        return collect($this->reportData['data'] ?? [])->map(function ($item) use (&$index, $formatTypeName, $formatStatus) {
+        return collect($this->reportData['data'] ?? [])->map(function ($item) use (&$index, $formatTypeName, $formatStatus, $formatActivityFlow, $formatDetailList) {
             $index++;
             $item = (array)$item;
             switch ($this->reportType) {
@@ -196,15 +219,15 @@ class ReportExport implements FromCollection, WithHeadings, ShouldAutoSize, With
                         'kontak' => $item['phone'] ?? '-',
                     ];
                 case 'flow_transaction':
+                    $activityInfo = resolve_transaction_activity($item);
                     $clientName = $item['client']['profile']['name'] ?? $item['other_source_profile']['name'] ?? '-';
-                    $devicesList = collect($item['details'])->map(fn($d) => $d['stored_device']['device']['brand'] ?? '-')->implode("\n");
                     return [
                         'no' => $index,
                         'id_transaksi' => $item['transaction_number'] ?? '-',
-                        'flow' => $formatStatus($item['transaction_type'] ?? null),
+                        'flow' => $formatActivityFlow($item),
                         'klien_sumber' => $clientName,
-                        'perangkat' => $devicesList ?: '-',
-                        'status' => $formatStatus($item['instalation_status'] ?? $item['status'] ?? null),
+                        'perangkat' => $formatDetailList($item),
+                        'status' => $activityInfo['status_display'],
                         'tanggal' => Carbon::parse($item['created_at'])->isoFormat('D MMM YYYY'),
                     ];
                 case 'deployed_device':

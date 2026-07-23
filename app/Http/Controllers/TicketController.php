@@ -7,9 +7,12 @@ use App\Models\Letters;
 use App\Models\StoredDevice;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Http\Requests\StoreTicketRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log; // Tambahkan di bagian atas
 
 
@@ -119,59 +122,61 @@ public function reject($id)
         return view('page.user.ticket-user', compact('tickets', 'countPending', 'countProcess'));
     }
 
-    public function store(Request $request)
+    public function store(StoreTicketRequest $request)
     {
-        // 1. CEK TIKET AKTIF (logika yang sudah ada)
-        // Hitung total tiket dengan status 'pending' ATAU 'process' milik user yang login
-        $activeTicketCount = Ticket::where('user_id', auth()->id())
-                                   ->whereIn('status', ['pending', 'process'])
-                                   ->count();
-    
-        // Cek jika jumlah tiket aktif (pending/process) sudah 1 atau lebih
-        if ($activeTicketCount >= 1) {
+        $validatedData = $request->validated();
+
+        // ponytail: Kunci pengguna selama 5 detik untuk mencegah double-submit / race condition dari klik berulang
+        $lock = Cache::lock('create_ticket_' . auth()->id(), 5);
+
+        if (!$lock->get()) {
             return redirect()->route('panel.ticket.user-ticket')
-                           ->with('error', 'Anda sudah memiliki 1 tiket yang berstatus pending atau sedang diproses. Silakan tunggu hingga tiket selesai sebelum membuat tiket baru.');
+                           ->with('error', 'Permintaan Anda sedang diproses. Silakan tunggu sebentar.');
         }
-    
-        // 2. LOGIKA BARU: Cek model Letters
-        // Cek apakah user memiliki surat dengan status 'open'.
-        // Asumsi: kolom di tabel 'letters' yang menunjuk ke user adalah 'client_id'.
-        $openLetterExists = Letters::where('client_id', auth()->id())
-                                  ->where('status', 'open')
-                                  ->exists(); // 'exists()' lebih efisien daripada 'count()' jika hanya butuh tahu ada/tidaknya data
-    
-        // Jika ditemukan ada surat dengan status 'open', tolak request.
-        if ($openLetterExists) {
-            return redirect()->route('panel.ticket.user-ticket')
-                           ->with('error', 'Tiket Anda telah memasuki tahap Penyuratan dengan status open. Silakan ajukan tiket baru setelah surat dinyatakan closed');
+
+        try {
+            return DB::transaction(function () use ($validatedData) {
+                // 1. Cek tiket aktif milik user
+                $activeTicketCount = Ticket::where('user_id', auth()->id())
+                                           ->whereIn('status', ['pending', 'process'])
+                                           ->count();
+
+                if ($activeTicketCount >= 1) {
+                    return redirect()->route('panel.ticket.user-ticket')
+                                   ->with('error', 'Anda sudah memiliki 1 tiket yang berstatus pending atau sedang diproses. Silakan tunggu hingga tiket selesai sebelum membuat tiket baru.');
+                }
+
+                // 2. Cek apakah user memiliki surat dengan status 'open'
+                $openLetterExists = Letters::where('client_id', auth()->id())
+                                          ->where('status', 'open')
+                                          ->exists();
+
+                if ($openLetterExists) {
+                    return redirect()->route('panel.ticket.user-ticket')
+                                   ->with('error', 'Tiket Anda telah memasuki tahap Penyuratan dengan status open. Silakan ajukan tiket baru setelah surat dinyatakan closed');
+                }
+
+                // 3. Buat tiket baru
+                $ticket = Ticket::create([
+                    'user_id' => auth()->id(),
+                    'ticket_type' => $validatedData['ticket_type'],
+                    'subject' => $validatedData['subject'],
+                    'notes' => $validatedData['description'],
+                    'status' => 'pending',
+                ]);
+
+                // Simpan history
+                History::create([
+                    'user_id' => auth()->id(),
+                    'history_data' => 'Membuat tiket baru dengan subjek: ' . $validatedData['subject'],
+                ]);
+
+                return redirect()->route('panel.ticket.user-ticket')
+                               ->with('success', 'Tiket berhasil dibuat. Kami akan segera menghubungi Anda.');
+            });
+        } finally {
+            $lock->release();
         }
-    
-        // 3. JIKA SEMUA PENGECEKAN LOLOS, LANJUTKAN PROSES (logika yang sudah ada)
-        // Validasi input
-        $validatedData = $request->validate([
-            'subject' => 'required|max:255',
-            'ticket_type' => 'required',
-            'description' => 'required',
-        ]);
-    
-        // Buat tiket baru
-        $ticket = Ticket::create([
-            'user_id' => auth()->id(),
-            'ticket_type' => $validatedData['ticket_type'],
-            'subject' => $validatedData['subject'],
-            'notes' => $validatedData['description'],
-            'status' => 'pending',
-        ]);
-    
-        // Simpan history setiap kali tiket berhasil dibuat
-        History::create([
-            'user_id' => auth()->id(),
-            'history_data' => 'Membuat tiket baru dengan subjek: ' . $validatedData['subject'],
-        ]);
-    
-        // Redirect dengan pesan sukses
-        return redirect()->route('panel.ticket.user-ticket')
-                       ->with('success', 'Tiket berhasil dibuat. Kami akan segera menghubungi Anda.');
     }
     public function cancel(Request $request): RedirectResponse
     {
@@ -180,7 +185,12 @@ public function reject($id)
         
 
         try {
-            $ticket = Ticket::findOrFail($ticketId);
+            $user = auth()->user();
+            $query = Ticket::where('id', $ticketId);
+            if ($user && !in_array($user->role, ['admin', 'master'])) {
+                $query->where('user_id', $user->id);
+            }
+            $ticket = $query->firstOrFail();
 
             if ($ticket->status === 'pending' && $ticket->request_to_cancel === 0) {
                 $ticket->status = 'canceled';

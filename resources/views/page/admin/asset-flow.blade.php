@@ -178,14 +178,20 @@
                                                     data-letter-signed-pdf-url="{{ $transaction->letter?->sign_pdf_path ? route('panel.letter.view_signed_archive', $transaction->letter->id) : '' }}"
                                                     data-details='{!! json_encode($transaction->details->map(function($d) use ($transaction) { 
                                                         $status = 0;
+                                                        $ld = null;
                                                         if ($transaction->letter) {
                                                             $ld = $transaction->letter->details->where("stored_device_id", $d->stored_device_id)->first();
                                                             if ($ld) { $status = $ld->status; }
                                                         }
+                                                        // Untuk item TARIK (status=1), ambil kondisi dari letter_details->withdrawcondition
+                                                        // Untuk item SERAH (status=0), tetap ambil dari stored_devices->condition
+                                                        $condition = ($status === 1 && $ld)
+                                                            ? ($ld->withdrawcondition == 1 ? 'Rusak' : 'Bekas')
+                                                            : ($d->storedDevice?->condition ?? 'N/A');
                                                         return [
                                                             "device" => ($d->storedDevice?->device?->brand ?? "N/A") . " " . ($d->storedDevice?->device?->model ?? ""), 
                                                             "quantity" => $d->quantity, 
-                                                            "condition" => $d->storedDevice?->condition ?? "N/A",
+                                                            "condition" => $condition,
                                                             "status" => $status
                                                         ]; 
                                                     })) !!}'>
@@ -252,14 +258,20 @@
                                         data-letter-signed-pdf-url="{{ $transaction->letter?->sign_pdf_path ? route('panel.letter.view_signed_archive', $transaction->letter->id) : '' }}"
                                         data-details='{!! json_encode($transaction->details->map(function($d) use ($transaction) { 
                                             $status = 0;
+                                            $ld = null;
                                             if ($transaction->letter) {
                                                 $ld = $transaction->letter->details->where("stored_device_id", $d->stored_device_id)->first();
                                                 if ($ld) { $status = $ld->status; }
                                             }
+                                            // Untuk item TARIK (status=1), ambil kondisi dari letter_details->withdrawcondition
+                                            // Untuk item SERAH (status=0), tetap ambil dari stored_devices->condition
+                                            $condition = ($status === 1 && $ld)
+                                                ? ($ld->withdrawcondition == 1 ? 'Rusak' : 'Bekas')
+                                                : ($d->storedDevice?->condition ?? 'N/A');
                                             return [
                                                 "device" => ($d->storedDevice?->device?->brand ?? "N/A") . " " . ($d->storedDevice?->device?->model ?? ""), 
                                                 "quantity" => $d->quantity, 
-                                                "condition" => $d->storedDevice?->condition ?? "N/A",
+                                                "condition" => $condition,
                                                 "status" => $status
                                             ]; 
                                         })) !!}'>

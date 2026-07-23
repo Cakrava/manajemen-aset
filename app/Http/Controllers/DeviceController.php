@@ -77,10 +77,10 @@ class DeviceController extends Controller
             'type' => 'required|string',
         ]);
 
-        // Cari perangkat yang cocok tanpa mempedulikan huruf besar/kecil
-        $existingDevice = Device::whereRaw('LOWER(brand) = ?', [strtolower($validatedData['brand'])])
-                                ->whereRaw('LOWER(model) = ?', [strtolower($validatedData['model'])])
-                                ->whereRaw('LOWER(type) = ?', [strtolower($validatedData['type'])])
+        // ponytail: Menggunakan query Eloquent standar karena collation database default (utf8mb4_unicode_ci) sudah case-insensitive. Menghindari whereRaw('LOWER(...)') yang mematikan DB Index (O(n) full table scan).
+        $existingDevice = Device::where('brand', $validatedData['brand'])
+                                ->where('model', $validatedData['model'])
+                                ->where('type', $validatedData['type'])
                                 ->first();
 
         if ($existingDevice) {

@@ -122,6 +122,7 @@
                             <div class="filter-toggle-group">
                                 <span class="filter-toggle-option" data-value="in">Masuk</span>
                                 <span class="filter-toggle-option" data-value="out">Keluar</span>
+                                <span class="filter-toggle-option" data-value="hybrid">In & Out</span>
                             </div>
                         </div>
                         <div class="dynamic-filter d-none" id="flowTransactionStatusFilter">
@@ -276,6 +277,55 @@
                 return formattedWords.join(' ');
             }
 
+            function formatActivityFlow(activity, activityLabel) {
+                if (!activity) return '-';
+                let statusText = activityLabel || activity;
+                let style = '';
+                const baseStyle = 'border: 1px solid; padding: 2px 8px; border-radius: 10px; background-color: #ffffff; display: inline-block; min-width: 85px; text-align: center; box-sizing: border-box; font-size: 0.9em; font-weight: 500;';
+
+                switch (activity) {
+                    case 'in':
+                        statusText = 'In';
+                        style = `${baseStyle} border-color: #28a745; color: #28a745;`;
+                        break;
+                    case 'out':
+                        statusText = 'Out';
+                        style = `${baseStyle} border-color: #dc3545; color: #dc3545;`;
+                        break;
+                    case 'hybrid':
+                        statusText = 'In & Out';
+                        style = `${baseStyle} border-color: #6f42c1; color: #6f42c1;`;
+                        break;
+                }
+
+                if (style) {
+                    return `<span style="${style}">${statusText} <i class="ti ti-${activity === 'hybrid' ? 'arrows-up-down' : (activity === 'in' ? 'arrow-down' : 'arrow-up')}"></i></span>`;
+                }
+                return statusText;
+            }
+
+            function resolveTransactionActivity(item) {
+                const letterDetails = item.letter?.details || [];
+                const statuses = letterDetails.map(d => d.status);
+                const hasSerah = statuses.some(s => s == 0);
+                const hasTarik = statuses.some(s => s == 1);
+                const isHybrid = hasSerah && hasTarik;
+
+                if (isHybrid) {
+                    return { activity: 'hybrid', activityLabel: 'In & Out', isHybrid: true, statusDisplay: (item.instalation_status === 'Deployed' ? 'Deployed & Intake' : (item.instalation_status || '-')) };
+                }
+                if (item.transaction_type === 'in') {
+                    return { activity: 'in', activityLabel: 'In', isHybrid: false, statusDisplay: item.instalation_status || '-' };
+                }
+                return { activity: 'out', activityLabel: 'Out', isHybrid: false, statusDisplay: item.instalation_status || '-' };
+            }
+
+            function resolveDetailStatus(item, storedDeviceId) {
+                const letterDetails = item.letter?.details || [];
+                const match = letterDetails.find(d => d.stored_device_id == storedDeviceId);
+                return match != null ? match.status : null;
+            }
+
             function formatStatus(status) {
                 if (!status || typeof status !== 'string') {
                     return '-';
@@ -310,6 +360,10 @@
                     case 'revoked':
                         statusText = 'Revoked';
                         style = `${baseStyle} border-color: #dc3545; color: #dc3545;`;
+                        break;
+                    case 'deployed & intake':
+                        statusText = 'Deployed & Intake';
+                        style = `${baseStyle} border-color: #198754; color: #198754;`;
                         break;
                 }
 
@@ -359,13 +413,24 @@
                     } else if (currentSelectedReportType === 'other_profile') {
                         rowHtml += `<td>${item.name}</td><td>${item.institution || '-'}</td><td>${formatTypeName(item.institution_type || '-')}</td><td>${item.phone || '-'}</td>`;
                     } else if (currentSelectedReportType === 'flow_transaction') {
+                        const activityInfo = resolveTransactionActivity(item);
                         rowHtml += `<td>${item.transaction_number}</td>`;
-                        rowHtml += `<td>${formatStatus(item.transaction_type)}</td>`;
+                        rowHtml += `<td>${formatActivityFlow(activityInfo.activity, activityInfo.activityLabel)}</td>`;
                         let clientName = item.client?.profile?.name || item.other_source_profile?.name || '-';
                         rowHtml += `<td>${clientName}</td>`;
-                        let devicesList = '<ul>' + (item.details?.map(d => `<li>${d.stored_device?.device?.brand || '-'}</li>`).join('') || '<li>-</li>') + '</ul>';
+                        let devicesList = '<ul>' + (item.details?.map(d => {
+                            const brand = d.stored_device?.device?.brand || '-';
+                            const detailStatus = resolveDetailStatus(item, d.stored_device_id);
+                            let badge = '';
+                            if (detailStatus === 1) {
+                                badge = ' <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#fde8e8;color:#dc3545;">Tarik</span>';
+                            } else if (detailStatus === 0) {
+                                badge = ' <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#e8f0fe;color:#0d6efd;">Serah</span>';
+                            }
+                            return `<li>${brand}${badge}</li>`;
+                        }).join('') || '<li>-</li>') + '</ul>';
                         rowHtml += `<td>${devicesList}</td>`;
-                        rowHtml += `<td>${formatStatus(item.instalation_status || item.status)}</td>`;
+                        rowHtml += `<td>${formatStatus(activityInfo.statusDisplay)}</td>`;
                         rowHtml += `<td>${new Date(item.created_at).toLocaleDateString('id-ID')}</td>`;
                     } else if (currentSelectedReportType === 'deployed_device') {
                         let clientName = item.client?.profile?.name || item.other_source_profile?.name || '-';

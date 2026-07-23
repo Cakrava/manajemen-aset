@@ -33,7 +33,6 @@ Route::get('login', [AuthController::class, 'login'])->name('auth.login') ;
 Route::name('login')->get('/login-redirect', function () {
     return redirect()->route('auth.login');
 });
-Route::post('/stored-device/generate-initial', [App\Http\Controllers\StoredDeviceController::class, 'generateInitial'])->name('panel.stored-device.generateInitial');
 Route::get('/register/invitation', [AuthController::class, 'showRegistrationForm'])->name('register.invitation');
 Route::post('/register/invitation', [AuthController::class, 'register'])->name('auth.register');
 Route::post('/complete-letter-submission', [TransactionController::class, 'processSubmission'])->name('letter.process.completion');
@@ -77,7 +76,6 @@ Route::middleware([CheckLoginStatus::class])->group(function () {
         Route::post('tickets/client', [TicketController::class, 'store'])->name('panel.ticket.store');
         Route::post('/tickets/client-cancel', [TicketController::class, 'cancel'])->name('panel.ticket.cancel');
         Route::post('/panel/user/messages/mark-as-read', [MessageController::class, 'markMessagesFromAdminAsRead'])->name('panel.user.messages.markAsRead');
-        Route::get('/histories', [HistoryController::class, 'index'])->name('histories.index');
         Route::get('/chat',     [MessageController::class, 'index'])->name('chat.index');
         Route::post('/histories', [HistoryController::class, 'store'])->name('histories.store');
         Route::get('/histories/show', [HistoryController::class, 'show'])->name('histories.show');
@@ -181,19 +179,4 @@ Route::middleware([CheckLoginStatus::class])->group(function () {
             Route::get('/view-printable-pdf', [ReportController::class, 'viewPrintablePdf'])->name('reports.viewPrintable');
         });
     });
-});
-
-/*
-|--------------------------------------------------------------------------
-| Rute Debugging
-|--------------------------------------------------------------------------
-*/
-Route::get('/__debuglog', function () {
-    $logPath = storage_path('logs/laravel.log');
-
-    if (!file_exists($logPath)) {
-        return response('Log file not found.', 404);
-    }
-
-    return response()->file($logPath);
 });

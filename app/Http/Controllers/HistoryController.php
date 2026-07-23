@@ -7,11 +7,6 @@ use Illuminate\Http\Request;
 
 class HistoryController extends Controller
 {
-    public function index()
-    {
-        $histories = History::all();
-        return view('histories.index', compact('histories'));
-    }
 
     public function store(Request $request)
     {

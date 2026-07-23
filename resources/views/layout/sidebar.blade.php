@@ -284,5 +284,51 @@
         </div>
     </nav>
 
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof Pusher !== 'undefined' && '{{ auth()->check() ? "true" : "false" }}' === 'true') {
+            const pusherKey = '{{ config("broadcasting.connections.pusher.key") ?: env("PUSHER_APP_KEY", "a0bfb32c5eb3bd092080") }}';
+            const pusherCluster = '{{ config("broadcasting.connections.pusher.options.cluster") ?: env("PUSHER_APP_CLUSTER", "ap1") }}';
+            const userId = '{{ auth()->id() }}';
+            const userRole = '{{ session("role") }}';
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            if (pusherKey && userId) {
+                try {
+                    const globalPusher = new Pusher(pusherKey, {
+                        cluster: pusherCluster,
+                        forceTLS: true,
+                        authEndpoint: '/broadcasting/auth',
+                        auth: { headers: { 'X-CSRF-TOKEN': csrfToken } }
+                    });
+
+                    const channelName = (userRole === 'admin' || userRole === 'master') ? 'private-admin-channel' : `private-user-channel.${userId}`;
+                    const globalChannel = globalPusher.subscribe(channelName);
+
+                    // 1. Listen real-time badge updates
+                    globalChannel.bind('badge-updated', function (data) {
+                        if (data.badgeType === 'unread_messages') {
+                            const badgeAdmin = document.getElementById('sidebar-badge-ticket-process');
+                            const badgeUser = document.getElementById('sidebar-message-badge-user');
+                            if (badgeAdmin) badgeAdmin.style.display = data.count > 0 ? '' : 'none';
+                            if (badgeUser) badgeUser.style.display = data.count > 0 ? '' : 'none';
+                        }
+                    });
+
+                    // 2. Listen real-time letter menu ACC / update
+                    globalChannel.bind('letter-updated', function (data) {
+                        const letterMenus = document.querySelectorAll('.pc-link[href*="letter"]');
+                        letterMenus.forEach(menu => {
+                            const item = menu.closest('.pc-item');
+                            if (item) item.style.display = '';
+                        });
+                    });
+                } catch (e) {
+                    console.error("Global Pusher Init Error:", e);
+                }
+            }
+        }
+    });
+    </script>
 
 @endsection

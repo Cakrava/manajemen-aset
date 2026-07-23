@@ -79,15 +79,18 @@ class ReportController extends Controller
                     break;
 
                 case 'flow_transaction':
-                    $query = Transaction::with(['client.profile', 'otherSourceProfile', 'details.storedDevice.device']);
+                    $query = Transaction::with([
+                        'client.profile',
+                        'otherSourceProfile',
+                        'details.storedDevice.device',
+                        'letter.details',
+                    ]);
                     if ($startDate && $endDate) {
                         $query->whereBetween('created_at', [$startDate, $endDate]);
                     }
-                    // DIUBAH: Menggunakan whereIn untuk multi-pilihan tipe transaksi
                     if (!empty($filters['transactionType'])) {
-                        $query->whereIn('transaction_type', $filters['transactionType']);
+                        $this->applyFlowTransactionTypeFilter($query, $filters['transactionType']);
                     }
-                    // DIUBAH: Menggunakan whereIn untuk multi-pilihan status transaksi
                     if (!empty($filters['transactionStatus'])) {
                         $query->whereIn('instalation_status', $filters['transactionStatus']);
                     }
@@ -124,6 +127,41 @@ class ReportController extends Controller
             }
         }
         return response()->json($reportsData);
+    }
+
+    /**
+     * Filter aktivitas transaksi: in (masuk), out (keluar), hybrid (campuran In & Out).
+     */
+    private function applyFlowTransactionTypeFilter($query, array $types): void
+    {
+        $query->where(function ($outer) use ($types) {
+            foreach ($types as $type) {
+                $outer->orWhere(function ($sub) use ($type) {
+                    if ($type === 'hybrid') {
+                        $sub->whereHas('letter.details', fn ($d) => $d->where('status', 0))
+                            ->whereHas('letter.details', fn ($d) => $d->where('status', 1));
+                    } elseif ($type === 'in') {
+                        $sub->where(function ($inner) {
+                            $inner->where(function ($letterIn) {
+                                $letterIn->whereHas('letter.details', fn ($d) => $d->where('status', 1))
+                                    ->whereDoesntHave('letter.details', fn ($d) => $d->where('status', 0));
+                            })->orWhere(function ($manualIn) {
+                                $manualIn->where('transaction_type', 'in')->whereNull('letter_id');
+                            });
+                        });
+                    } elseif ($type === 'out') {
+                        $sub->where(function ($inner) {
+                            $inner->where(function ($letterOut) {
+                                $letterOut->whereHas('letter.details', fn ($d) => $d->where('status', 0))
+                                    ->whereDoesntHave('letter.details', fn ($d) => $d->where('status', 1));
+                            })->orWhere(function ($manualOut) {
+                                $manualOut->where('transaction_type', 'out')->whereNull('letter_id');
+                            });
+                        });
+                    }
+                });
+            }
+        });
     }
 
     private function _mapQueryFilters(Request $request): array

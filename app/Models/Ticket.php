@@ -16,10 +16,7 @@
         'status',
         'request_to_cancel',
     ];
-    public function tickets(): \Illuminate\Database\Eloquent\Relations\HasMany
-    {
-        return $this->hasMany(Ticket::class);
-    }
+
     public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class);

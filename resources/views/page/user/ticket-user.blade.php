@@ -1,29 +1,16 @@
 @extends('layout.sidebar')
 @section('content')
 @include('component.loader')
-    <script>
-        // Optimasi: Pastikan script dijalankan setelah DOM siap
-        document.addEventListener('DOMContentLoaded', function () {
-            function tampilkanDivSesuaiUkuran() {
-                var isMobile = window.innerWidth <= 768;
-                var divTicketMobile = document.getElementById('divTicketMobile');
-                var divTicketDesktop = document.getElementById('divTicketDesktop');
-                if (divTicketMobile && divTicketDesktop) {
-                    divTicketMobile.style.display = isMobile ? 'block' : 'none';
-                    divTicketDesktop.style.display = isMobile ? 'none' : 'block';
-                }
-            }
+<style>
+    #divTicketMobile { display: block; }
+    #divTicketDesktop { display: none; }
+    @media (min-width: 769px) {
+        #divTicketMobile { display: none !important; }
+        #divTicketDesktop { display: block !important; }
+    }
+</style>
 
-            // Jalankan saat halaman dimuat
-            tampilkanDivSesuaiUkuran();
-
-            // Jalankan juga saat ukuran layar berubah (responsive)
-            window.addEventListener('resize', tampilkanDivSesuaiUkuran);
-        });
-    </script>
-
-
-    <div id="divTicketMobile" style="display: none;">
+    <div id="divTicketMobile">
         @include('layout.bottom-navigation')
         @php
             // Dengan "Make Ticket" sebagai modal, tab utama yang aktif defaultnya adalah "My Tickets"

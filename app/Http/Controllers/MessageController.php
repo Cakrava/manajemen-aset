@@ -92,10 +92,21 @@ class MessageController extends Controller
             'ticket_id' => 'nullable|integer|exists:tickets,id', // Validasi jika tiket ada
         ]);
 
+        $ticketId = $request->input('ticket_id');
+        if ($ticketId) {
+            $ticketExists = Ticket::where('id', $ticketId)->where('user_id', Auth::id())->exists();
+            if (!$ticketExists) {
+                if ($request->ajax()) {
+                    return response()->json(['error' => 'Tiket tidak valid atau bukan milik Anda.'], 403);
+                }
+                return back()->with('error', 'Tiket tidak valid atau bukan milik Anda.');
+            }
+        }
+
         $message = Message::create([
             'sender_id' => Auth::id(),
             'receiver_id' => null, // Pesan dari user ke admin pool
-            'ticket_id' => $request->input('ticket_id'),
+            'ticket_id' => $ticketId,
             'message' => $request->input('message'),
             'is_read' => 0, // Default belum dibaca admin
         ]);
@@ -103,6 +114,9 @@ class MessageController extends Controller
 
         if ($message) { // Pastikan create berhasil
             event(new \App\Events\NewMessageSent($message));
+            $unreadCount = Message::whereNull('receiver_id')->where('is_read', 0)->count();
+            // Broadcast to admin pool (user_id 0 / admin)
+            event(new \App\Events\RealtimeBadgeUpdated(Auth::id(), 'unread_messages', $unreadCount));
        }
 
         

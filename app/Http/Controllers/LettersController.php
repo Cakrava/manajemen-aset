@@ -13,6 +13,8 @@ use App\Models\StoredDevice;
 use App\Models\Ticket;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Events\LetterStatusUpdated;
+use App\Events\RealtimeBadgeUpdated;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -220,6 +222,11 @@ class LettersController extends Controller
             ], 200);
         }
 
+        // Dispatch event real-time agar menu & badge surat muncul seketika di layar Admin / User tanpa refresh
+        event(new LetterStatusUpdated($letter));
+        $neededCount = Letters::where('status', 'Needed')->count();
+        event(new RealtimeBadgeUpdated((int)$letter->client_id, 'needed_letters', $neededCount));
+
         $assetFlowUrl = route('admin.asset-flow.view');
         session()->flash('success', 'Surat dengan nomor ' . $letter->letter_number . ' berhasil dibuat dan diarsipkan. Silahkan lanjutkan proses di <a href="' . $assetFlowUrl . '" class="underline font-bold hover:text-blue-200">Asset Flow</a>.');
         
@@ -252,10 +259,22 @@ class LettersController extends Controller
         try {
             $validatedData = $request->validate([
                 'ticket_id' => 'required|integer|exists:tickets,id',
-                'equipments' => 'required|array|min:1',
+                'equipments' => 'nullable|array',
                 'equipments.*.id' => 'required|integer|exists:stored_devices,id',
                 'equipments.*.quantity' => 'required|integer|min:1',
+                'withdrawals' => 'nullable|array',
+                'withdrawals.*.stored_device_id' => 'required|integer|exists:stored_devices,id',
+                'withdrawals.*.quantity' => 'required|integer|min:1',
+                'withdrawals.*.condition' => 'required|string',
             ]);
+
+            if (empty($validatedData['equipments']) && empty($validatedData['withdrawals'])) {
+                Log::warning('generateSst: Request ditolak karena tidak ada item perangkat maupun penarikan.');
+                return response()->json([
+                    'message' => 'Pilih setidaknya 1 perangkat untuk diserahkan atau ditarik.',
+                    'type' => 'warning'
+                ], 422);
+            }
             Log::info('Validasi berhasil.', $validatedData);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -302,20 +321,37 @@ class LettersController extends Controller
                 ]);
                 Log::info('Data berhasil disimpan ke tabel letters dengan ID: ' . $newLetter->id);
         
-                Log::info('Memulai loop untuk menyimpan transaction_detail.');
-                foreach ($validatedData['equipments'] as $index => $item) {
-                    $detailData = [
-                        'letter_id' => $newLetter->id,
-                        'stored_device_id' => $item['id'],
-                        'quantity' => $item['quantity'],
-                        'status' => 0, 
-                        'withdrawcondition' => 0,
-                    ];
-                    Log::info("Loop " . ($index + 1) . ": Menyimpan data detail:", $detailData);
-                    LetterDetail::create($detailData);
-                    Log::info("Loop " . ($index + 1) . ": Data detail berhasil disimpan.");
+                // Item Penyerahan
+                if (!empty($validatedData['equipments'])) {
+                    foreach ($validatedData['equipments'] as $index => $item) {
+                        $detailData = [
+                            'letter_id' => $newLetter->id,
+                            'stored_device_id' => $item['id'],
+                            'quantity' => $item['quantity'],
+                            'status' => 0, 
+                            'withdrawcondition' => 0,
+                        ];
+                        Log::info("Loop Penyerahan " . ($index + 1) . ": Menyimpan data detail:", $detailData);
+                        LetterDetail::create($detailData);
+                    }
                 }
-                Log::info('Loop transaction_detail selesai.');
+
+                // Item Penarikan
+                if (!empty($validatedData['withdrawals'])) {
+                    foreach ($validatedData['withdrawals'] as $index => $item) {
+                        $withdrawConditionVal = (strtolower($item['condition']) === 'rusak') ? 1 : 0;
+                        $detailData = [
+                            'letter_id' => $newLetter->id,
+                            'stored_device_id' => $item['stored_device_id'],
+                            'quantity' => $item['quantity'],
+                            'status' => 1, 
+                            'withdrawcondition' => $withdrawConditionVal,
+                        ];
+                        Log::info("Loop Penarikan " . ($index + 1) . ": Menyimpan data detail:", $detailData);
+                        LetterDetail::create($detailData);
+                    }
+                }
+                Log::info('Penyimpanan detail surat selesai.');
 
                 Log::info('Mengupdate status tiket ID ' . $ticket->id . ' menjadi "completed".');
                 $ticket->update(['status' => 'completed']);
@@ -339,6 +375,11 @@ class LettersController extends Controller
             $letter->pdf_path = $pdfFileName;
             $letter->save();
             Log::info("PDF path berhasil disimpan untuk surat ID: {$letter->id}");
+
+            // Dispatch event real-time agar menu & badge surat muncul seketika di layar Admin / User tanpa refresh
+            event(new LetterStatusUpdated($letter));
+            $neededCount = Letters::where('status', 'Needed')->count();
+            event(new RealtimeBadgeUpdated((int)$letter->client_id, 'needed_letters', $neededCount));
 
             session()->flash('success', 'Surat Serah Terima berhasil dibuat dengan nomor ' . $letter->letter_number . ' dan tiket telah selesai.');
 
