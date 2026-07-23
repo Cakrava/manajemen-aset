@@ -153,6 +153,7 @@ Route::middleware([CheckLoginStatus::class])->group(function () {
         Route::get('/admin/users/{user}/tickets', [TicketController::class, 'showUserTickets'])->name('admin.user.tickets.show');
         Route::post('/tickets/{id}/accept', [TicketController::class, 'accept'])->name('ticket.accept');
         Route::post('/tickets/{id}/reject', [TicketController::class, 'reject'])->name('ticket.reject');
+        Route::post('/tickets/admin-confirm-cancel', [TicketController::class, 'confirmCancel'])->name('admin.ticket.confirm-cancel');
         
         // Letter
         Route::get('/letters/{letter}/view-archive', [LettersController::class, 'viewArchivedPdf'])->name('panel.letter.view_archive');

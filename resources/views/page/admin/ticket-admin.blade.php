@@ -117,7 +117,7 @@
                                 data-ticket-id="" data-ticket-subject="" data-ticket-type="">
                                 <i class="fas fa-newspaper"></i> Process
                             </button>
-                            <form method="POST" action="{{ route('panel.ticket.cancel') }}" class="d-inline admin-cancel-form">
+                            <form method="POST" action="{{ route('admin.ticket.confirm-cancel') }}" class="d-inline admin-cancel-form">
                                 @csrf
                                 <input type="hidden" name="ticket_id" value="" class="admin-cancel-ticket-id-input">
                                 <button type="submit" class="btn btn-sm admin-process-cancel-btn">

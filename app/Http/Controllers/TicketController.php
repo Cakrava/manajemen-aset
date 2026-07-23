@@ -178,6 +178,38 @@ public function reject($id)
             $lock->release();
         }
     }
+    public function confirmCancel(Request $request): RedirectResponse
+    {
+        $request->validate(['ticket_id' => 'required|integer|exists:tickets,id']);
+        $ticketId = $request->input('ticket_id');
+
+        try {
+            $ticket = Ticket::findOrFail($ticketId);
+
+            if ($ticket->status === 'process' && $ticket->request_to_cancel == 1) {
+                $subject = $ticket->subject;
+                $ticket->request_to_cancel = 0;
+                $ticket->status = 'canceled';
+                $ticket->save();
+
+                History::create([
+                    'user_id'      => auth()->id(),
+                    'history_data' => 'Admin mengkonfirmasi pembatalan tiket ID ' . $ticketId . ' dengan subject "' . $subject . '".',
+                ]);
+
+                Log::info('Admin mengkonfirmasi pembatalan tiket ID: ' . $ticketId);
+                return redirect()->back()->with('success', 'Pembatalan tiket berhasil dikonfirmasi.');
+            }
+
+            Log::warning('Tiket ID: ' . $ticketId . ' tidak dapat dikonfirmasi pembatalannya (status atau request_to_cancel tidak sesuai).');
+            return redirect()->back()->with('warning', 'Tiket tidak memenuhi syarat untuk dikonfirmasi pembatalannya.');
+
+        } catch (\Exception $e) {
+            Log::error('Gagal mengkonfirmasi pembatalan tiket ID: ' . $ticketId . '. Error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal mengkonfirmasi pembatalan tiket.');
+        }
+    }
+
     public function cancel(Request $request): RedirectResponse
     {
         $request->validate(['ticket_id' => 'required|integer|exists:tickets,id']);
