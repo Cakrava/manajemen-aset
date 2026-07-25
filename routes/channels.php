@@ -24,10 +24,15 @@ Broadcast::channel('conversation.{targetUserId}', function (User $user, int $tar
 Broadcast::channel('admin-channel', function ($user) {
     return $user->role === 'admin'; // Sesuaikan cek role admin
 });
-Broadcast::channel('user-channel.{id}', function (User $loggedInUser, int $id) { // Perhatikan parameter $id
+Broadcast::channel('user-channel.{id}', function (User $loggedInUser, int $id) {
     Log::info("[Channel Auth] Attempting to authorize 'user-channel.{$id}'. Logged in User ID: {$loggedInUser->id}, Target Channel ID: {$id}");
-    // Otorisasi: User yang sedang login HARUS sama dengan ID di placeholder channel
     $isAuthorized = (int) $loggedInUser->id === $id;
     Log::info("[Channel Auth] Authorization for 'user-channel.{$id}': " . ($isAuthorized ? 'GRANTED' : 'DENIED'));
     return $isAuthorized;
 });
+
+// Channel baru untuk sistem chat Helpdesk: chat.{userId}
+// User pemilik atau admin boleh join
+Broadcast::channel('chat.{userId}', function (User $loggedUser, int $userId) {
+    return (int) $loggedUser->id === $userId || $loggedUser->role === 'admin';
+});

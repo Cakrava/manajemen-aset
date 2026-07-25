@@ -28,10 +28,87 @@
 
             <!-- Kartu Statistik Utama -->
             <div class="row">
-                <div class="col-md-6 col-xl-3"><div class="card card-statistic"><div class="card-body"><div class="d-flex align-items-center"><div class="avtar bg-light-primary text-primary rounded-circle"><i class="ti ti-package"></i></div><div class="ms-3"><p class="mb-0 text-muted">Stok di Gudang</p><h4 class="mb-0">{{ number_format($totalDeviceStock) }}</h4></div></div></div></div></div>
-                <div class="col-md-6 col-xl-3"><div class="card card-statistic"><div class="card-body"><div class="d-flex align-items-center"><div class="avtar bg-light-success text-success rounded-circle"><i class="ti ti-stack"></i></div><div class="ms-3"><p class="mb-0 text-muted">Aset Terpasang</p><h4 class="mb-0">{{ number_format($totalDeployedDevices) }}</h4></div></div></div></div></div>
-                <div class="col-md-6 col-xl-3"><div class="card card-statistic"><div class="card-body"><div class="d-flex align-items-center"><div class="avtar bg-light-warning text-warning rounded-circle"><i class="ti ti-clock"></i></div><div class="ms-3"><p class="mb-0 text-muted">Transaksi Pending</p><h4 class="mb-0">{{ $pendingTransactionsCount }}</h4></div></div></div></div></div>
-                <div class="col-md-6 col-xl-3"><div class="card card-statistic"><div class="card-body"><div class="d-flex align-items-center"><div class="avtar bg-light-danger text-danger rounded-circle"><i class="ti ti-ticket"></i></div><div class="ms-3"><p class="mb-0 text-muted">Tiket Terbuka</p><h4 class="mb-0">{{ $openTicketsCount }}</h4></div></div></div></div></div>
+                <!-- Merek Perangkat di Gudang -->
+                <div class="col-md-6 col-xl-4">
+                    <div class="card card-statistic">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="avtar bg-light-primary text-primary rounded-circle me-3">
+                                    <i class="ti ti-device-desktop"></i>
+                                </div>
+                                <div>
+                                    <p class="mb-0 text-muted">Merek Perangkat di Gudang</p>
+                                    <h4 class="mb-0">{{ $totalBrandsCount }} <small class="text-muted fs-6 font-normal">Merek (Total {{ number_format($totalDeviceStock) }} Unit)</small></h4>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-top">
+                                @forelse($deviceBrandStock as $brandItem)
+                                    <span class="badge bg-light-primary text-primary me-1 mb-1">
+                                        {{ $brandItem->brand }}: <strong>{{ number_format($brandItem->total_stock) }} unit</strong>
+                                    </span>
+                                @empty
+                                    <small class="text-muted">Tidak ada stok di gudang</small>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card Letter (1 kotak div yang sama dengan judul "Letter") -->
+                <div class="col-md-6 col-xl-5">
+                    <div class="card card-statistic">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="avtar bg-light-info text-info rounded-circle me-3">
+                                    <i class="ti ti-file-text"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-0">Letter</h5>
+                                    <small class="text-muted">Status Dokumen & Asset Flow</small>
+                                </div>
+                            </div>
+                            <div class="row text-center pt-2 border-top">
+                                <div class="col-4 border-end">
+                                    <p class="mb-1 text-muted small">Pending / Needed</p>
+                                    <h4 class="mb-0 text-warning">{{ $pendingLettersCount }}</h4>
+                                </div>
+                                <div class="col-4 border-end">
+                                    <p class="mb-1 text-muted small">Surat Selesai</p>
+                                    <h4 class="mb-0 text-success">{{ $completedLettersCount }}</h4>
+                                </div>
+                                <div class="col-4">
+                                    <p class="mb-1 text-muted small">Flow Berhasil</p>
+                                    <h4 class="mb-0 text-primary">{{ $successfulFlowCount }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kartu Tiket Terbuka & Aset Terpasang -->
+                <div class="col-md-6 col-xl-3">
+                    <div class="card card-statistic">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="avtar bg-light-danger text-danger rounded-circle">
+                                    <i class="ti ti-ticket"></i>
+                                </div>
+                                <div class="ms-3">
+                                    <p class="mb-0 text-muted">Tiket Terbuka</p>
+                                    <h4 class="mb-0">{{ $openTicketsCount }}</h4>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center mt-3 pt-2 border-top">
+                                <div class="avtar avtar-xs bg-light-success text-success rounded-circle me-2">
+                                    <i class="ti ti-stack"></i>
+                                </div>
+                                <div class="small text-muted">
+                                    Aset Terpasang: <strong class="text-dark">{{ number_format($totalDeployedDevices) }} Unit</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Grafik -->

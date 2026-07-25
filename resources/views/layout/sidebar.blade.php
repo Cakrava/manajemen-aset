@@ -286,46 +286,78 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function () {
-        if (typeof Pusher !== 'undefined' && '{{ auth()->check() ? "true" : "false" }}' === 'true') {
-            const pusherKey = '{{ config("broadcasting.connections.pusher.key") ?: env("PUSHER_APP_KEY", "a0bfb32c5eb3bd092080") }}';
-            const pusherCluster = '{{ config("broadcasting.connections.pusher.options.cluster") ?: env("PUSHER_APP_CLUSTER", "ap1") }}';
-            const userId = '{{ auth()->id() }}';
+        if ('{{ auth()->check() ? "true" : "false" }}' === 'true') {
+            const userId   = '{{ auth()->id() }}';
             const userRole = '{{ session("role") }}';
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-            if (pusherKey && userId) {
-                try {
-                    const globalPusher = new Pusher(pusherKey, {
-                        cluster: pusherCluster,
-                        forceTLS: true,
-                        authEndpoint: '/broadcasting/auth',
-                        auth: { headers: { 'X-CSRF-TOKEN': csrfToken } }
-                    });
+            // --- Toast Helper ---
+            function showMessageToast(senderName, messagePreview) {
+                // Hapus toast lama jika ada
+                document.querySelectorAll('.rt-toast').forEach(el => el.remove());
 
-                    const channelName = (userRole === 'admin' || userRole === 'master') ? 'private-admin-channel' : `private-user-channel.${userId}`;
-                    const globalChannel = globalPusher.subscribe(channelName);
+                const toast = document.createElement('div');
+                toast.className = 'rt-toast toast align-items-center text-bg-primary border-0 position-fixed bottom-0 end-0 m-3';
+                toast.style.zIndex = 9999;
+                toast.setAttribute('role', 'alert');
+                toast.innerHTML = `
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <strong>💬 New Message</strong><br>
+                            <span class="text-white-50">${senderName}</span><br>
+                            <small>${messagePreview}</small>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>`;
+                document.body.appendChild(toast);
+                const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
+                bsToast.show();
+                toast.addEventListener('hidden.bs.toast', () => toast.remove());
+            }
 
-                    // 1. Listen real-time badge updates
-                    globalChannel.bind('badge-updated', function (data) {
-                        if (data.badgeType === 'unread_messages') {
-                            const badgeAdmin = document.getElementById('sidebar-badge-ticket-process');
-                            const badgeUser = document.getElementById('sidebar-message-badge-user');
-                            if (badgeAdmin) badgeAdmin.style.display = data.count > 0 ? '' : 'none';
-                            if (badgeUser) badgeUser.style.display = data.count > 0 ? '' : 'none';
+            // Cek apakah sedang di halaman chat
+            function isOnChatPage() {
+                return /\/(message|chat)/i.test(window.location.pathname);
+            }
+
+            function initSidebarListeners() {
+                if (!window.Echo) return;
+
+                // Public channel — semua role dengerin badgeticket untuk badge update
+                window.Echo.channel('badgeticket')
+                    .listen('.triger', function (data) {
+                        // Tampilkan badge pesan di sidebar
+                        const badgeAdmin = document.getElementById('sidebar-badge-ticket-process');
+                        const badgeUser  = document.getElementById('sidebar-message-badge-user');
+                        if (badgeAdmin) badgeAdmin.style.display = '';
+                        if (badgeUser)  badgeUser.style.display  = '';
+
+                        // Toast: tampil jika bukan di halaman chat
+                        if (!isOnChatPage() && data.sender_name) {
+                            showMessageToast(data.sender_name, data.message_preview || '...');
                         }
                     });
 
-                    // 2. Listen real-time letter menu ACC / update
-                    globalChannel.bind('letter-updated', function (data) {
-                        const letterMenus = document.querySelectorAll('.pc-link[href*="letter"]');
-                        letterMenus.forEach(menu => {
-                            const item = menu.closest('.pc-item');
-                            if (item) item.style.display = '';
+                // User: tahu saat admin membalas — subscribe ke private chat.{userId}
+                if (userRole !== 'admin' && userRole !== 'master') {
+                    window.Echo.private(`chat.${userId}`)
+                        .listen('.chat', function (eventData) {
+                            const badgeUser = document.getElementById('sidebar-message-badge-user');
+                            if (badgeUser) badgeUser.style.display = '';
+
+                            // Toast untuk user saat admin balas dan user tidak di halaman chat
+                            if (!isOnChatPage() && eventData.sender_data) {
+                                const name    = eventData.sender_data?.profile?.name ?? 'Admin';
+                                const preview = (eventData.message?.message ?? '').substring(0, 30);
+                                showMessageToast(name, preview || '...');
+                            }
                         });
-                    });
-                } catch (e) {
-                    console.error("Global Pusher Init Error:", e);
                 }
+            }
+
+            if (window.Echo) {
+                initSidebarListeners();
+            } else {
+                setTimeout(initSidebarListeners, 500);
             }
         }
     });

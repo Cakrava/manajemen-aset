@@ -560,72 +560,83 @@
             });
         });
 
-        // --- Inisialisasi dan Konfigurasi Pusher (Tidak Diubah) ---
-        if (typeof Pusher !== 'undefined' && loggedInAdminId && csrfToken) {
-            Pusher.logToConsole = true; // Aktifkan untuk debugging
+        // Toast admin untuk pesan dari user yang bukan sedang dibuka
+        function showAdminToast(senderName, preview) {
+            document.querySelectorAll('.rt-toast').forEach(el => el.remove());
+            const toast = document.createElement('div');
+            toast.className = 'rt-toast toast align-items-center text-bg-primary border-0 position-fixed bottom-0 end-0 m-3';
+            toast.style.zIndex = 9999;
+            toast.setAttribute('role', 'alert');
+            toast.innerHTML = `<div class="d-flex"><div class="toast-body"><strong>💬 New Message</strong><br><span class="text-white-50">${senderName}</span><br><small>${preview}</small></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+            document.body.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
+            bsToast.show();
+            toast.addEventListener('hidden.bs.toast', () => toast.remove());
+        }
 
-            try {
-                pusher = new Pusher('{{ env('PUSHER_APP_KEY') }}', {
-                    cluster: '{{ env('PUSHER_APP_CLUSTER') }}',
-                    forceTLS: (('{{ env('PUSHER_SCHEME') }}' || 'https') === 'https'),
-                    authEndpoint: '/broadcasting/auth',
-                    auth: { headers: { 'X-CSRF-TOKEN': csrfToken } }
-                });
+        // --- Konfigurasi Echo Pusher WebSocket ---
+        function initAdminChatEcho() {
+            if (!window.Echo) return;
 
-                // 1. Channel Notifikasi Admin (untuk pembaruan daftar pengguna)
-                const adminChannelName = 'private-admin-channel';
-                adminNotificationChannel = pusher.subscribe(adminChannelName);
-                adminNotificationChannel.bind('pusher:subscription_error', status => console.error(`Pusher: Gagal subscribe ke ${adminChannelName}:`, status));
-                adminNotificationChannel.bind('pusher:subscription_succeeded', () => {
-                    console.log(`Pusher: Berhasil subscribe ke ${adminChannelName}.`);
-                    adminNotificationChannel.bind('new-message', data => {
-                        console.log(`Pusher: Menerima event 'new-message' di channel admin:`, data);
-                        if (data.message && data.message.receiver_id === null && data.message.sender_id !== loggedInAdminId) {
-                            updateUserListRealtime(data);
+            // 1. Channel Global Badge (selalu aktif) — public channel
+            window.Echo.channel('badgeticket')
+                .listen('.triger', function (data) {
+                    // Update badge unread di list user
+                    const badge = document.getElementById(`unread-badge-${data.sender_id}`);
+                    if (badge) {
+                        const cur = parseInt(badge.textContent) || 0;
+                        if (selectedUserId !== parseInt(data.sender_id)) {
+                            badge.textContent = cur + 1;
+                            badge.style.display = 'inline-block';
                         }
-                    });
+                    }
+                    // Refresh posisi user di list
+                    if (typeof updateUserListRealtime === 'function') {
+                        updateUserListRealtime(data);
+                    }
+                    // Toast jika user yang masuk bukan yang sedang dibuka
+                    if (data.sender_id !== selectedUserId && data.sender_name) {
+                        showAdminToast(data.sender_name, data.message_preview || '...');
+                    }
                 });
 
-            } catch (e) {
-                console.error("Pusher: Gagal inisialisasi:", e);
-            }
-
-            // 2. Fungsi untuk Subscribe Channel Chat Pengguna (saat percakapan dibuka)
+            // 2. Fungsi Subscribe Channel Chat per User (dipanggil saat admin klik user)
             window.subscribeToUserChatChannel = function (userId) {
-                if (!pusher || !userId) return;
-                const newChannelName = `private-conversation.${userId}`;
-                if (userChatChannel && userChatChannel.name === newChannelName) return;
+                if (!window.Echo || !userId) return;
+                const channelName = `chat.${userId}`;
 
                 if (userChatChannel) {
-                    pusher.unsubscribe(userChatChannel.name);
+                    window.Echo.leave(userChatChannel);
                 }
+                userChatChannel = channelName;
 
-                userChatChannel = pusher.subscribe(newChannelName);
-                userChatChannel.bind('pusher:subscription_error', status => console.error(`Pusher: Gagal subscribe ke ${newChannelName}:`, status));
-                userChatChannel.bind('pusher:subscription_succeeded', () => {
-                    console.log(`Pusher: Berhasil subscribe ke ${newChannelName}`);
-                    userChatChannel.bind('new-message', data => {
-                        console.log(`Pusher: Menerima event di channel user aktif ${newChannelName}:`, data);
-                        if (data.message && selectedUserId === data.message.sender_id) {
-                            addIncomingMessageToBox(data.message);
-                            fetch('{{ route('panel.admin.chat.markAsRead') }}', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-                                body: JSON.stringify({ user_id: selectedUserId })
-                            })
-                            .then(response => response.json())
-                            .then(result => {
-                                if (result.success) console.log(`Pusher: Pesan dari user ${selectedUserId} ditandai dibaca.`);
-                                else console.warn(`Pusher: Gagal menandai pesan dibaca (server).`);
-                            })
-                            .catch(error => console.error('Pusher: Error saat request mark-as-read:', error));
+                window.Echo.private(channelName)
+                    .listen('.chat', function (data) {
+                        console.log('Echo Pusher: pesan masuk di ' + channelName, data);
+                        // Jangan render ulang pesan milik admin sendiri
+                        if (data.message && data.message.sender_id === loggedInAdminId) return;
+
+                        addIncomingMessageToBox(data.message);
+                        fetch('{{ route('panel.admin.chat.markAsRead') }}', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                            body: JSON.stringify({ user_id: selectedUserId })
+                        }).catch(error => console.error('Echo: mark-as-read error:', error));
+
+                        // Hapus badge user ini karena sudah dibuka
+                        const userRow = document.querySelector(`[data-user-id="${userId}"]`);
+                        if (userRow) {
+                            const badge = userRow.querySelector('.realtime-badge');
+                            if (badge) badge.remove();
                         }
                     });
-                });
-            }
+            };
+        }
 
+        if (window.Echo) {
+            initAdminChatEcho();
         } else {
-            console.error("Pusher tidak dapat diinisialisasi. Periksa library, Admin ID, atau CSRF token.");
+            setTimeout(initAdminChatEcho, 500);
         }
 
     });

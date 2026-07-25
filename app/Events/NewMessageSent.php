@@ -31,7 +31,7 @@ class NewMessageSent implements ShouldBroadcastNow
         // - sender.profile (user_id, name, DAN image) <-- Tambahkan 'image'
         // - ticket (jika ada)
         $this->message = $message->load([
-            'sender:id',
+            'sender:id,role',
             'sender.profile:user_id,name,image', // <--- TAMBAHKAN ',image'
             'ticket'
         ]);
@@ -54,49 +54,24 @@ class NewMessageSent implements ShouldBroadcastNow
         }
     }
 
-    // Method broadcastOn() TIDAK PERLU DIUBAH dari versi sebelumnya
     public function broadcastOn(): array
-{
-    $channels = [];
-    $broadcastingToChannels = []; // Array untuk mengumpulkan nama channel yang akan di-log
+    {
+        // Satu channel: chat.{user_id} — user adalah pihak non-admin
+        // Baik user maupun admin yang sedang buka chat user ini akan menerima event
+        if ($this->message->sender && $this->message->sender->role === 'user') {
+            // Pesan dari user ke admin
+            $userId = $this->message->sender_id;
+        } else {
+            // Pesan dari admin ke user
+            $userId = $this->message->receiver_id;
+        }
 
-    Log::info("[NewMessageSent broadcastOn] Menganalisis pesan ID: " . $this->message->id . ", Sender ID: " . ($this->message->sender_id ?? 'N/A') . ", Receiver ID: " . ($this->message->receiver_id ?? 'N/A') . ", Sender Role: " . ($this->message->sender->role ?? 'N/A'));
-
-    // Skenario 1: Pesan dari User ke Admin Pool
-    if (is_null($this->message->receiver_id) && $this->message->sender && $this->message->sender->role === 'user') {
-        Log::info("[NewMessageSent broadcastOn] Skenario 1: User ke Admin Pool.");
-        $channels[] = new PrivateChannel('admin-channel');
-        $broadcastingToChannels[] = 'private-admin-channel';
-        $channels[] = new PrivateChannel('conversation.' . $this->message->sender_id);
-        $broadcastingToChannels[] = 'private-conversation.' . $this->message->sender_id;
-
-    }
-    // Skenario 2: Pesan dari Admin ke User Spesifik
-    elseif (!is_null($this->message->receiver_id) && $this->message->sender && $this->message->sender->role === 'admin') {
-        $receiverId = $this->message->receiver_id;
-        Log::info("[NewMessageSent broadcastOn] Skenario 2: Admin ke User. Receiver ID: " . $receiverId);
-
-        $channels[] = new PrivateChannel('user-channel.' . $receiverId);
-        $broadcastingToChannels[] = 'private-user-channel.' . $receiverId;
-
-        $channels[] = new PrivateChannel('conversation.' . $receiverId);
-        $broadcastingToChannels[] = 'private-conversation.' . $receiverId;
-    } else {
-        Log::warning("[NewMessageSent broadcastOn] Tidak ada skenario broadcast yang cocok untuk pesan ID: " . $this->message->id);
+        return $userId ? [new PrivateChannel('chat.' . $userId)] : [];
     }
 
-    if (!empty($broadcastingToChannels)) {
-        Log::info("[NewMessageSent Event] Akan broadcast ke channels: " . implode(', ', $broadcastingToChannels) . " untuk message ID: " . $this->message->id);
-    } else {
-        Log::info("[NewMessageSent Event] Tidak ada channel yang ditentukan untuk broadcast pesan ID: " . $this->message->id);
-    }
-    return array_unique($channels);
-}
-
-    // Method broadcastAs() TIDAK PERLU DIUBAH
     public function broadcastAs(): string
     {
-        return 'new-message';
+        return 'chat';
     }
 
     // Method broadcastWith() BISA DIHAPUS

@@ -21,14 +21,30 @@
     {{-- ======================= TAMPILAN MOBILE ======================= --}}
     <div id="divMessageMobile" style="display: none;">
         <style>
-            /* ... (CSS Mobile yang sudah ada) ... */
-            #divMessageMobile html,
-            #divMessageMobile body {
-                height: 100%;
-                margin: 0;
+            html, body {
+                overflow: hidden !important;
+                height: 100vh !important;
+                height: 100dvh !important;
+            }
+
+            .pc-container {
+                height: calc(100vh - 65px) !important;
+                overflow: hidden !important;
+                padding-bottom: 0 !important;
+            }
+
+            .pc-content {
+                height: 100% !important;
+                padding: 10px !important;
+                overflow: hidden !important;
+                display: flex;
+                flex-direction: column;
+            }
+
+            #divMessageMobile {
+                height: 100vh;
+                height: 100dvh;
                 overflow: hidden;
-                background-color: #f5f5f5;
-                -webkit-tap-highlight-color: transparent;
             }
 
             #divMessageMobile .mobile-chat-container {
@@ -41,42 +57,43 @@
                 flex-direction: column;
                 background-color: #fff;
                 z-index: 1000;
+                overflow: hidden;
+                height: 100vh;
+                height: 100dvh;
             }
 
             #divMessageMobile .chat-header {
+                flex: 0 0 auto;
                 background-color: #0EA2BC;
                 color: white;
                 padding: 15px;
                 display: flex;
                 align-items: center;
-                position: sticky;
-                top: 0;
                 z-index: 10;
                 box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             }
 
-            #divMessageMobile .chat-header h5 {
-                margin: 0;
-                font-weight: 600;
-                font-size: 1.2rem;
-            }
-
-            #divMessageMobile .back-button {
-                color: white;
-                font-size: 1.5rem;
-                margin-right: 15px;
-                text-decoration: none;
-                display: flex;
-                align-items: center;
-            }
-
             #divMessageMobile .chat-box-mobile-content {
-                flex: 1;
+                flex: 1 1 auto;
+                height: 0;
+                min-height: 0;
                 overflow-y: auto;
                 padding: 15px;
-
                 background-color: #f5f5f5;
+                display: flex;
+                flex-direction: column;
                 -webkit-overflow-scrolling: touch;
+            }
+
+            #divMessageMobile .input-area-wrapper {
+                flex: 0 0 auto;
+                background-color: #ffffff;
+                border-top: 1px solid #e0e0e0;
+                padding: 10px;
+                position: relative;
+                bottom: 0;
+                width: 100%;
+                z-index: 20;
             }
 
             #divMessageMobile .message-bubble {
@@ -511,13 +528,17 @@
 
                 function getStatusBadgeClassMobile(status) { if (!status) return 'badge bg-info'; const ls = status.toLowerCase(); switch (ls) { case 'open': case 'baru': return 'bg-success'; case 'pending': case 'menunggu balasan': case 'diproses': return 'bg-warning text-dark'; case 'closed': case 'selesai': return 'bg-secondary'; default: return 'bg-info'; } }
 
-                if (typeof Pusher !== 'undefined' && loggedInUserIdMobile && csrfTokenMobile && '{{ env('PUSHER_APP_KEY') }}') {
-                    Pusher.logToConsole = false;
-                    const pusherMobile = new Pusher('{{ env('PUSHER_APP_KEY') }}', { cluster: '{{ env('PUSHER_APP_CLUSTER') }}', forceTLS: (('{{ env('PUSHER_SCHEME') }}' || 'https') === 'https'), authEndpoint: '/broadcasting/auth', auth: { headers: { 'X-CSRF-TOKEN': csrfTokenMobile } } });
-                    const channelNameMobile = `private-conversation.${loggedInUserIdMobile}`;
-                    const channelMobile = pusherMobile.subscribe(channelNameMobile);
-                    channelMobile.bind('new-message', function (eventData) { if (eventData.message && eventData.message.sender_id !== loggedInUserIdMobile) { addMessageToBoxMobile(eventData.message, eventData.sender_data); scrollToBottomMobile(); } });
+                function initUserChatEchoMobile() {
+                    if (!window.Echo || !loggedInUserIdMobile) return;
+                    window.Echo.private(`chat.${loggedInUserIdMobile}`)
+                        .listen('.chat', function (eventData) {
+                            // Jangan render pesan sendiri (guard duplikasi)
+                            if (eventData.message && eventData.message.sender_id === loggedInUserIdMobile) return;
+                            addMessageToBoxMobile(eventData.message, eventData.sender_data);
+                            scrollToBottomMobile();
+                        });
                 }
+                if (window.Echo) { initUserChatEchoMobile(); } else { setTimeout(initUserChatEchoMobile, 500); }
 
                 function showInitialActionOptionsMobile() {
                     if (!actionModalBodyMobile || !actionModalTitleMobile) return;
@@ -600,20 +621,30 @@
                 <style>
                     /* ... (CSS Desktop yang sudah ada) ... */
                     #divMessageDesktop {
-                        height: calc(100vh - 70px);
+                        height: 100%;
+                        max-height: 100%;
                         display: flex;
                         flex-direction: column;
-                        background-color: #f8f9fa;
-                        padding: 20px;
+                        background-color: #ffffff;
+                        padding: 15px;
                         border-radius: 8px;
                         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-                        margin: 20px;
+                        margin: 0;
                         position: relative;
+                        overflow: hidden;
+                    }
+
+                    #divMessageDesktop .desktop-chat-container {
+                        display: flex;
+                        flex-direction: column;
+                        height: 100%;
+                        overflow: hidden;
                     }
 
                     #divMessageDesktop .desktop-chat-header {
-                        padding-bottom: 15px;
-                        margin-bottom: 15px;
+                        flex: 0 0 auto;
+                        padding-bottom: 10px;
+                        margin-bottom: 10px;
                         border-bottom: 1px solid #e9ecef;
                         display: flex;
                         align-items: center;
@@ -637,13 +668,17 @@
                     }
 
                     #divMessageDesktop .chat-box-desktop-content {
-                        flex-grow: 1;
+                        flex: 1 1 auto;
+                        height: 0;
+                        min-height: 0;
                         overflow-y: auto;
                         padding: 15px;
-                        background-color: #ffffff;
+                        background-color: #f8f9fa;
                         border: 1px solid #dee2e6;
                         border-radius: 6px;
-                        margin-bottom: 15px;
+                        margin-bottom: 10px;
+                        display: flex;
+                        flex-direction: column;
                     }
 
                     #divMessageDesktop .chat-box-desktop-content::-webkit-scrollbar {
@@ -716,9 +751,11 @@
                     }
 
                     #divMessageDesktop .input-area-wrapper-desktop {
+                        flex: 0 0 auto;
+                        margin-top: auto;
                         background-color: #ffffff;
                         border-top: 1px solid #dee2e6;
-                        padding: 15px;
+                        padding: 10px 0 0 0;
                         border-radius: 0 0 6px 6px;
                     }
 
@@ -1054,13 +1091,17 @@
 
                         function getStatusBadgeClassDesktop(status) { if (!status) return 'badge bg-info'; const ls = status.toLowerCase(); switch (ls) { case 'open': case 'baru': return 'bg-success'; case 'pending': case 'menunggu balasan': case 'diproses': return 'bg-warning text-dark'; case 'closed': case 'selesai': return 'bg-secondary'; default: return 'bg-info'; } }
 
-                        if (typeof Pusher !== 'undefined' && loggedInUserIdDesktop && csrfTokenDesktop && '{{ env('PUSHER_APP_KEY') }}') {
-                            Pusher.logToConsole = false;
-                            const pusherDesktop = new Pusher('{{ env('PUSHER_APP_KEY') }}', { cluster: '{{ env('PUSHER_APP_CLUSTER') }}', forceTLS: (('{{ env('PUSHER_SCHEME') }}' || 'https') === 'https'), authEndpoint: '/broadcasting/auth', auth: { headers: { 'X-CSRF-TOKEN': csrfTokenDesktop } } });
-                            const channelNameDesktop = `private-conversation.${loggedInUserIdDesktop}`;
-                            const channelDesktop = pusherDesktop.subscribe(channelNameDesktop);
-                            channelDesktop.bind('new-message', function (eventData) { if (eventData.message && eventData.message.sender_id !== loggedInUserIdDesktop) { addMessageToBoxDesktop(eventData.message, eventData.sender_data); scrollToBottomDesktop(); } });
+                        function initUserChatEchoDesktop() {
+                            if (!window.Echo || !loggedInUserIdDesktop) return;
+                            window.Echo.private(`chat.${loggedInUserIdDesktop}`)
+                                .listen('.chat', function (eventData) {
+                                    // Jangan render pesan sendiri (guard duplikasi)
+                                    if (eventData.message && eventData.message.sender_id === loggedInUserIdDesktop) return;
+                                    addMessageToBoxDesktop(eventData.message, eventData.sender_data);
+                                    scrollToBottomDesktop();
+                                });
                         }
+                        if (window.Echo) { initUserChatEchoDesktop(); } else { setTimeout(initUserChatEchoDesktop, 500); }
 
 
                         function showInitialActionOptionsDesktop() {

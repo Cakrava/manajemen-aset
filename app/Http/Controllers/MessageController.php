@@ -112,12 +112,14 @@ class MessageController extends Controller
         ]);
        
 
-        if ($message) { // Pastikan create berhasil
+        if ($message) {
             event(new \App\Events\NewMessageSent($message));
-            $unreadCount = Message::whereNull('receiver_id')->where('is_read', 0)->count();
-            // Broadcast to admin pool (user_id 0 / admin)
-            event(new \App\Events\RealtimeBadgeUpdated(Auth::id(), 'unread_messages', $unreadCount));
-       }
+            // Load profile for badge trigger name
+            $message->load('sender.profile:user_id,name');
+            $senderName    = $message->sender?->profile?->name ?? 'User';
+            $msgPreview    = mb_strimwidth($message->message, 0, 30, '...');
+            event(new \App\Events\BadgeTrigger($message->sender_id, 'message', $senderName, $msgPreview));
+        }
 
         
 if ($request->ajax()) {

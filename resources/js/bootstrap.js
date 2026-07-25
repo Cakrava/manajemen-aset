@@ -14,25 +14,4 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest'
  */
 
 import './echo'
-window.Echo = new Echo({
-  broadcaster: 'pusher', // <-- Pastikan ini 'pusher'
-  key: import.meta.env.VITE_PUSHER_APP_KEY,
-  cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER,
-  // wsHost: import.meta.env.VITE_PUSHER_HOST, // Biasanya tidak perlu jika pakai cluster
-  // wsPort: import.meta.env.VITE_PUSHER_PORT ?? 80,
-  // wssPort: import.meta.env.VITE_PUSHER_PORT ?? 443,
-  forceTLS: (import.meta.env.VITE_PUSHER_SCHEME ?? 'https') === 'https',
-  // encrypted: true, // Default true jika forceTLS true
-  // enabledTransports: ['ws', 'wss'], // Defaultnya sudah ini
-  // --- Konfigurasi Otorisasi ---
-  authEndpoint: '/broadcasting/auth', // Endpoint default Laravel
-  auth: {
-    headers: {
-      // Ambil CSRF token dari meta tag
-      'X-CSRF-TOKEN':
-        document
-          .querySelector('meta[name="csrf-token"]')
-          ?.getAttribute('content') || '',
-    },
-  },
-})
+

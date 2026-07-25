@@ -100,11 +100,24 @@ class DashboardController extends Controller
         switch ($user->role) {
             case 'admin':
             case 'master':
-                // ... (kode untuk admin & master tetap sama)
                 $dashboardData['totalDeviceStock'] = StoredDevice::sum('stock');
                 $dashboardData['totalDeployedDevices'] = DeploymentDeviceDetail::sum('quantity');
                 $dashboardData['pendingTransactionsCount'] = Transaction::where('instalation_status', 'Pending')->count();
                 $dashboardData['neededLettersCount'] = Letters::where('status', 'Needed')->count();
+                $dashboardData['pendingLettersCount'] = Letters::whereIn('status', ['Needed', 'Open'])->count();
+                $dashboardData['completedLettersCount'] = Letters::whereIn('status', ['Closed', 'Signed'])->count();
+                $dashboardData['successfulFlowCount'] = Transaction::where('instalation_status', 'Deployed')->count();
+
+                $deviceBrandStock = DB::table('stored_devices')
+                    ->join('devices', 'stored_devices.device_id', '=', 'devices.id')
+                    ->select('devices.brand', DB::raw('SUM(stored_devices.stock) as total_stock'))
+                    ->where('stored_devices.stock', '>', 0)
+                    ->groupBy('devices.brand')
+                    ->get();
+
+                $dashboardData['deviceBrandStock'] = $deviceBrandStock;
+                $dashboardData['totalBrandsCount'] = $deviceBrandStock->count();
+
                 $dashboardData['openTicketsCount'] = Ticket::whereIn('status', ['pending', 'process'])->count();
                 $transactionActivity = Transaction::select(
                         DB::raw('DATE(created_at) as date'),

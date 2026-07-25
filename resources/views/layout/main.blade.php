@@ -14,7 +14,7 @@
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+    @vite(['resources/js/app.js'])
     <!-- [Favicon] icon -->
     @include('layout.icon_tittle')
     <!-- [Google Font] Family -->
