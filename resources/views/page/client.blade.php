@@ -546,7 +546,9 @@
             const code = $('#invitation-code-display').text();
             // GANTI 'invitation.page' dengan nama route halaman gerbang Anda
             const registrationUrl = "{{-- route('invitation.page') --}}";
-            const textToCopy = `Halo, silakan gunakan kode undangan berikut untuk mendaftar:\n\nKode: ${code}\n\nAnda bisa memasukkan kode ini di halaman pendaftaran.`;
+            const appUrl = "{{ config('app.url') }}"; // Mengambil URL dari config/app.php (.env APP_URL)
+
+const textToCopy = `Halo, silakan gunakan kode undangan berikut untuk mendaftar:\n\nKode: ${code}\n\nAnda bisa memasukkan kode ini di halaman pendaftaran melalui ${appUrl}/invitation`;
 
             navigator.clipboard.writeText(textToCopy).then(() => {
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Info Disalin!', showConfirmButton: false, timer: 2000 });
