@@ -31,8 +31,9 @@ Broadcast::channel('user-channel.{id}', function (User $loggedInUser, int $id) {
     return $isAuthorized;
 });
 
-// Channel baru untuk sistem chat Helpdesk: chat.{userId}
-// User pemilik atau admin boleh join
+// Channel untuk sistem chat Helpdesk: chat.{userId}
+// User pemilik atau admin/master boleh join
 Broadcast::channel('chat.{userId}', function (User $loggedUser, int $userId) {
-    return (int) $loggedUser->id === $userId || $loggedUser->role === 'admin';
+    $role = strtolower($loggedUser->role ?? '');
+    return (int) $loggedUser->id === $userId || in_array($role, ['admin', 'master']);
 });

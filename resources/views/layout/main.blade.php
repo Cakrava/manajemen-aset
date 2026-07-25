@@ -14,8 +14,8 @@
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <!-- @vite(['resources/js/app.js']) -->
-    <script type="module" src="{{ flexible_asset('build/assets/app-DmfSVhUT.js') }}"></script>
+    @vite(['resources/js/app.js'])
+    
     <!-- [Favicon] icon -->
     @include('layout.icon_tittle')
     <!-- [Google Font] Family -->
