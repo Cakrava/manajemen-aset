@@ -407,7 +407,9 @@
                 const tableRows = reportSection.data.map((item, index) => {
                     let rowHtml = `<tr><td>${index + 1}</td>`;
                     if (currentSelectedReportType === 'inventory') {
-                        rowHtml += `<td>${item.device?.brand || '-'} </td><td>${formatTypeName(item.device?.type)}</td><td>${item.device?.model || '-'}</td><td>${item.stock}</td><td>${item.condition}</td>`;
+                        const displayName = item.device?.full_display_name || ((item.device?.brand || '-') + ' ' + (item.device?.model || ''));
+                        const stockText = item.formatted_stock || (item.stock + (item.device?.unit_type === 'meter' ? ' Meter' : ' Pcs'));
+                        rowHtml += `<td>${displayName}</td><td>${formatTypeName(item.device?.type)}</td><td>${item.device?.model || '-'}</td><td><b>${stockText}</b></td><td>${item.condition}</td>`;
                     } else if (currentSelectedReportType === 'instansi') {
                         rowHtml += `<td>${item.institution}</td><td>${formatTypeName(item.institution_type)}</td><td>${item.phone || '-'}</td><td>${item.address || '-'}</td>`;
                     } else if (currentSelectedReportType === 'other_profile') {
@@ -419,7 +421,9 @@
                         let clientName = item.client?.profile?.name || item.other_source_profile?.name || '-';
                         rowHtml += `<td>${clientName}</td>`;
                         let devicesList = '<ul>' + (item.details?.map(d => {
-                            const brand = d.stored_device?.device?.brand || '-';
+                            const deviceName = d.stored_device?.device?.full_display_name || ((d.stored_device?.device?.brand || '-') + ' ' + (d.stored_device?.device?.model || ''));
+                            const unitLabel = d.stored_device?.device?.unit_type === 'meter' ? 'Meter' : 'Pcs';
+                            const qtyStr = d.quantity_meter ? (d.quantity_meter + ' Meter') : (d.quantity ? (d.quantity + ' ' + unitLabel) : '');
                             const detailStatus = resolveDetailStatus(item, d.stored_device_id);
                             let badge = '';
                             if (detailStatus === 1) {
@@ -427,7 +431,7 @@
                             } else if (detailStatus === 0) {
                                 badge = ' <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#e8f0fe;color:#0d6efd;">Serah</span>';
                             }
-                            return `<li>${brand}${badge}</li>`;
+                            return `<li>${deviceName}${qtyStr ? ' (' + qtyStr + ')' : ''}${badge}</li>`;
                         }).join('') || '<li>-</li>') + '</ul>';
                         rowHtml += `<td>${devicesList}</td>`;
                         rowHtml += `<td>${formatStatus(activityInfo.statusDisplay)}</td>`;
@@ -437,7 +441,12 @@
                         rowHtml += `<td>${clientName}</td>`;
                         rowHtml += `<td>${item.client?.profile?.institution || '-'}</td>`;
                         rowHtml += `<td>${formatTypeName(item.client?.profile?.institution_type || '-')}</td>`;
-                        let devicesList = '<ul>' + (item.details?.map(d => `<li>${d.stored_device?.device?.brand || '-'}</li>`).join('') || '<li>-</li>') + '</ul>';
+                        let devicesList = '<ul>' + (item.details?.map(d => {
+                            const deviceName = d.stored_device?.device?.full_display_name || ((d.stored_device?.device?.brand || '-') + ' ' + (d.stored_device?.device?.model || ''));
+                            const unitLabel = d.stored_device?.device?.unit_type === 'meter' ? 'Meter' : 'Pcs';
+                            const qtyStr = d.quantity ? (d.quantity + ' ' + unitLabel) : '';
+                            return `<li>${deviceName}${qtyStr ? ' (' + qtyStr + ')' : ''}</li>`;
+                        }).join('') || '<li>-</li>') + '</ul>';
                         rowHtml += `<td>${devicesList}</td>`;
                         rowHtml += `<td>${new Date(item.created_at).toLocaleDateString('id-ID')}</td>`;
                         rowHtml += `<td>${formatStatus(item.instalation_status || item.status)}</td>`;

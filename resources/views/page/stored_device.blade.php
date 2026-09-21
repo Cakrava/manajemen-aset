@@ -105,9 +105,9 @@
                                         <tr class="{{ $isRecentUpdate ? 'highlight-row' : '' }}">
                                             <td><input class="form-check-input stored-device-checkbox" type="checkbox" value="{{ $storedDevice->id }}"></td>
                                             <td>{{ $storedDevice->device->brand ?? 'N/A' }}</td>
-                                            <td>{{ $storedDevice->device->model ?? 'N/A' }}</td>
-                                            <td>{{ Str::of($storedDevice->device->type ?? 'N/A')->replace('_', ' ')->title() }}</td>
-                                            <td>{{ $storedDevice->stock }}</td>
+                                            <td><strong>{{ $storedDevice->device?->full_display_name ?? 'N/A' }}</strong></td>
+                                            <td><span class="badge bg-light-info text-info">{{ $deviceTypeNames[$storedDevice->device->type ?? ''] ?? Str::of($storedDevice->device->type ?? 'N/A')->replace('_', ' ')->title() }}</span></td>
+                                            <td><strong>{{ $storedDevice->formatted_stock }}</strong></td>
                                             <td>
                                                 @if($storedDevice->previous_stock !== null)
                                                     @if($storedDevice->stock > $storedDevice->previous_stock) <span style="color: green;"><i class="ti ti-arrow-up"></i> Up</span>
@@ -159,8 +159,6 @@
 
     <!-- Modals -->
 
-    <!-- [MODIFIKASI] Menghapus HTML untuk #warningConfirmationModal -->
-
     <div class="modal fade" id="storedDeviceModal" tabindex="-1" aria-labelledby="storedDeviceModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -173,7 +171,7 @@
                             <select class="form-select" id="device_id" name="device_id" style="width: 100%;">
                                 <option selected disabled>Select Device Name</option>
                                 @foreach($devices as $device)
-                                <option value="{{ $device->id }}">{{ $device->brand }} - {{ $device->model }} ({{ $deviceTypeNames[$device->type] ?? 'Unknown' }})</option>
+                                <option value="{{ $device->id }}">{{ $device->full_display_name }} ({{ $deviceTypeNames[$device->type] ?? $device->type }})</option>
                                 @endforeach
                             </select>
                         </div>

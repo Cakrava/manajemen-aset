@@ -138,8 +138,8 @@
                                 data-reference="{{ $deployment->user?->profile?->reference ?? '' }}"
                                 data-details='@json($deployment->details->map(function($d) {
                                     return [
-                                        'device' => ($d->storedDevice?->device?->brand ?? 'N/A') . ' ' . ($d->storedDevice?->device?->model ?? ''),
-                                        'quantity' => $d->quantity
+                                        'device' => $d->storedDevice?->device?->full_display_name ?? (($d->storedDevice?->device?->brand ?? 'N/A') . ' ' . ($d->storedDevice?->device?->model ?? '')),
+                                        'quantity' => $d->quantity . ' ' . ($d->storedDevice?->device?->unit_type === 'meter' ? 'Meter' : 'Pcs')
                                     ];
                                 }))'>
                             Lihat Detail

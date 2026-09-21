@@ -189,8 +189,8 @@
                                                             ? ($ld->withdrawcondition == 1 ? 'Rusak' : 'Bekas')
                                                             : ($d->storedDevice?->condition ?? 'N/A');
                                                         return [
-                                                            "device" => ($d->storedDevice?->device?->brand ?? "N/A") . " " . ($d->storedDevice?->device?->model ?? ""), 
-                                                            "quantity" => $d->quantity, 
+                                                            "device" => $d->storedDevice?->device?->full_display_name ?? (($d->storedDevice?->device?->brand ?? "N/A") . " " . ($d->storedDevice?->device?->model ?? "")), 
+                                                            "quantity" => number_format($d->quantity) . ($d->storedDevice?->device?->unit_type === 'meter' ? ' Meter' : ' Pcs'), 
                                                             "condition" => $condition,
                                                             "status" => $status
                                                         ]; 

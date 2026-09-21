@@ -164,9 +164,9 @@
                         @foreach($handoverDetails->values() as $index => $detail)
                             <tr>
                                 <td style="text-align: center;">{{ $index + 1 }}</td>
-                                <td>{{ $detail->storedDevice?->device?->brand ?? 'N/A' }} {{ $detail->storedDevice?->device?->model ?? '' }}</td>
+                                <td><strong>{{ $detail->storedDevice?->device?->full_display_name ?? (($detail->storedDevice?->device?->brand ?? 'N/A') . ' ' . ($detail->storedDevice?->device?->model ?? '')) }}</strong></td>
                                 <td>{{ $detail->storedDevice?->condition ?? 'N/A' }}</td>
-                                <td style="text-align: center;">{{ $detail->quantity }}</td>
+                                <td style="text-align: center;">{{ number_format($detail->quantity) }} {{ $detail->storedDevice?->device?->unit_type === 'meter' ? 'Meter' : 'Pcs' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -189,7 +189,7 @@
                         @foreach($withdrawalDetails->values() as $index => $detail)
                             <tr>
                                 <td style="text-align: center;">{{ $index + 1 }}</td>
-                                <td>{{ $detail->storedDevice?->device?->brand ?? 'N/A' }} {{ $detail->storedDevice?->device?->model ?? '' }}</td>
+                                <td><strong>{{ $detail->storedDevice?->device?->full_display_name ?? (($detail->storedDevice?->device?->brand ?? 'N/A') . ' ' . ($detail->storedDevice?->device?->model ?? '')) }}</strong></td>
                                 <td>
                                     {{-- Logika status withdrawcondition: 1 = Rusak, 0 = Bekas --}}
                                     @if($detail->withdrawcondition === 1)
@@ -200,7 +200,7 @@
                                         {{ $detail->storedDevice?->condition ?? 'N/A' }}
                                     @endif
                                 </td>
-                                <td style="text-align: center;">{{ $detail->quantity }}</td>
+                                <td style="text-align: center;">{{ number_format($detail->quantity) }} {{ $detail->storedDevice?->device?->unit_type === 'meter' ? 'Meter' : 'Pcs' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

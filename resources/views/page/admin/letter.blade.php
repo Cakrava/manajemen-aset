@@ -682,7 +682,7 @@
         function renderInventoryList(searchTerm) {
             inventoryListContainer.innerHTML = '';
             const lower = searchTerm.toLowerCase();
-            const filtered = allInventories.filter(inv => !inv.device ? false : [inv.device.brand, inv.device.model, inv.device.type].some(val => (val || '').toString().toLowerCase().includes(lower)));
+            const filtered = allInventories.filter(inv => !inv.device ? false : [inv.device.brand, inv.device.model, inv.device.type, inv.device.full_display_name].some(val => (val || '').toString().toLowerCase().includes(lower)));
             if (filtered.length === 0) {
                 inventoryListContainer.innerHTML = `<p class="text-muted">${searchTerm ? 'Inventaris tidak ditemukan.' : 'Ketik untuk mencari inventaris...'}</p>`;
                 return;
@@ -693,7 +693,9 @@
                 const li = document.createElement('li');
                 li.className = 'list-group-item';
                 const isSelected = selectedEquipments.some(eq => eq.inventory.id === inv.id);
-                li.innerHTML = `<div class="d-flex justify-content-between align-items-center"><div><strong>${inv.device.brand || ''} ${inv.device.model || ''}</strong> (${inv.device.type || ''})<br><small class="text-muted">Stok: ${inv.stock} | Kondisi: ${inv.condition}</small></div><div class="input-group input-group-sm" style="width: 150px;"><input type="number" class="form-control quantity-input" value="1" min="1" max="${inv.stock}" ${isSelected ? 'disabled' : ''}><button class="btn ${isSelected ? 'btn-success' : 'btn-outline-primary'} add-item-btn" data-inventory-id="${inv.id}" ${isSelected ? 'disabled' : ''}>${isSelected ? '✓ Ditambahkan' : 'Add'}</button></div></div>`;
+                const displayName = inv.device.full_display_name || ((inv.device.brand || '') + ' ' + (inv.device.model || ''));
+                const stockText = inv.formatted_stock || (inv.stock + (inv.device?.unit_type === 'meter' ? ' Meter' : ' Pcs'));
+                li.innerHTML = `<div class="d-flex justify-content-between align-items-center"><div><strong>${displayName}</strong> (${inv.device.type || ''})<br><small class="text-muted">Stok: <b>${stockText}</b> | Kondisi: ${inv.condition}</small></div><div class="input-group input-group-sm" style="width: 150px;"><input type="number" class="form-control quantity-input" value="1" min="1" max="${inv.stock}" ${isSelected ? 'disabled' : ''}><button class="btn ${isSelected ? 'btn-success' : 'btn-outline-primary'} add-item-btn" data-inventory-id="${inv.id}" ${isSelected ? 'disabled' : ''}>${isSelected ? '✓ Ditambahkan' : 'Add'}</button></div></div>`;
                 ul.appendChild(li);
             });
             inventoryListContainer.appendChild(ul);
@@ -734,11 +736,12 @@
                 const isSelected = withdrawnEquipments.some(we => we.stored_device_id === unit.stored_device_id);
                 const li = document.createElement('li');
                 li.className = 'list-group-item';
+                const unitLabel = unit.unit_type === 'meter' ? 'Meter' : 'Pcs';
                 li.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <strong>${unit.name}</strong><br>
-                            <small class="text-muted">Kondisi Saat Ini: ${unit.condition} | Terpasang (Stok): <b>${unit.quantity}</b> unit</small>
+                            <small class="text-muted">Kondisi Saat Ini: ${unit.condition} | Terpasang (Stok): <b>${unit.quantity}</b> ${unitLabel}</small>
                         </div>
                         <div class="input-group input-group-sm" style="width: 220px;">
                             <select class="form-select condition-select" ${isSelected ? 'disabled' : ''}>
@@ -772,7 +775,8 @@
                     stored_device_id: storedId, 
                     name: unitData.name, 
                     quantity: qty, 
-                    condition: condition 
+                    condition: condition,
+                    unit_type: unitData.unit_type 
                 });
                 renderSelectedEquipments();
                 button.textContent = '✓';
@@ -796,11 +800,13 @@
             selectedEquipments.forEach((item, index) => {
                 const li = document.createElement('li');
                 li.className = 'list-group-item d-flex justify-content-between align-items-center mb-1 border-primary-subtle';
+                const displayName = item.inventory.device.full_display_name || ((item.inventory.device.brand || '') + ' ' + (item.inventory.device.model || ''));
+                const unitLabel = item.inventory.device.unit_type === 'meter' ? 'Meter' : 'Pcs';
                 li.innerHTML = `
                     <span>
                         <span class="badge bg-light-primary text-primary mb-1">Serah Terima</span><br>
-                        <strong>${item.inventory.device.brand} ${item.inventory.device.model}</strong>
-                        <small class="text-muted d-block">Qty: ${item.quantity}</small>
+                        <strong>${displayName}</strong>
+                        <small class="text-muted d-block">Qty: ${item.quantity} ${unitLabel}</small>
                     </span>
                     <button class="btn btn-sm btn-outline-danger remove-selected-equipment-btn" data-index="${index}" data-inventory-id="${item.inventory.id}">×</button>
                 `;
@@ -810,11 +816,12 @@
             withdrawnEquipments.forEach((item, index) => {
                 const li = document.createElement('li');
                 li.className = 'list-group-item d-flex justify-content-between align-items-center mb-1 border-danger-subtle';
+                const unitLabel = item.unit_type === 'meter' ? 'Meter' : 'Pcs';
                 li.innerHTML = `
                     <span>
                         <span class="badge bg-light-danger text-danger mb-1">Penarikan (Kondisi: ${item.condition})</span><br>
                         <strong>${item.name}</strong>
-                        <small class="text-muted d-block">Qty: ${item.quantity}</small>
+                        <small class="text-muted d-block">Qty: ${item.quantity} ${unitLabel}</small>
                     </span>
                     <button class="btn btn-sm btn-outline-danger remove-withdrawn-equipment-btn" data-index="${index}" data-stored-id="${item.stored_device_id}">×</button>
                 `;

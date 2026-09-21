@@ -175,15 +175,18 @@ class ReportExport implements FromCollection, WithHeadings, ShouldAutoSize, With
 
         $formatDetailList = function ($item) {
             $lines = collect($item['details'] ?? [])->map(function ($detail) use ($item) {
-                $brand = $detail['stored_device']['device']['brand'] ?? '-';
+                $deviceName = $detail['stored_device']['device']['full_display_name'] ?? (($detail['stored_device']['device']['brand'] ?? 'N/A') . ' ' . ($detail['stored_device']['device']['model'] ?? ''));
+                $unitLabel = ($detail['stored_device']['device']['unit_type'] ?? 'unit') === 'meter' ? 'Meter' : 'Pcs';
+                $qtyStr = !empty($detail['quantity_meter']) ? ($detail['quantity_meter'] . ' Meter') : (!empty($detail['quantity']) ? ($detail['quantity'] . ' ' . $unitLabel) : '');
                 $status = resolve_transaction_detail_status($item, (int) ($detail['stored_device_id'] ?? 0));
+                
+                $suffix = '';
                 if ($status === 1) {
-                    return $brand . ' (Tarik)';
+                    $suffix = ' (Tarik)';
+                } else if ($status === 0) {
+                    $suffix = ' (Serah)';
                 }
-                if ($status === 0) {
-                    return $brand . ' (Serah)';
-                }
-                return $brand;
+                return $deviceName . ($qtyStr ? ' (' . $qtyStr . ')' : '') . $suffix;
             });
             return $lines->implode("\n") ?: '-';
         };
@@ -194,12 +197,14 @@ class ReportExport implements FromCollection, WithHeadings, ShouldAutoSize, With
             $item = (array)$item;
             switch ($this->reportType) {
                 case 'inventory':
+                    $displayName = $item['device']['full_display_name'] ?? (($item['device']['brand'] ?? '-') . ' ' . ($item['device']['model'] ?? ''));
+                    $stockText = $item['formatted_stock'] ?? (($item['stock'] ?? 0) . ' ' . (($item['device']['unit_type'] ?? 'unit') === 'meter' ? 'Meter' : 'Pcs'));
                     return [
                         'no' => $index,
-                        'perangkat' => $item['device']['brand'] ?? '-',
+                        'perangkat' => $displayName,
                         'tipe' => $formatTypeName($item['device']['type'] ?? null),
                         'model' => $item['device']['model'] ?? '-',
-                        'stok' => $item['stock'] ?? 0,
+                        'stok' => $stockText,
                         'kondisi' => $item['condition'] ?? '-',
                     ];
                 case 'instansi':
@@ -232,7 +237,12 @@ class ReportExport implements FromCollection, WithHeadings, ShouldAutoSize, With
                     ];
                 case 'deployed_device':
                     $clientName = $item['client']['profile']['name'] ?? $item['other_source_profile']['name'] ?? '-';
-                    $devicesList = collect($item['details'])->map(fn($d) => $d['stored_device']['device']['brand'] ?? '-')->implode("\n");
+                    $devicesList = collect($item['details'] ?? [])->map(function($d) {
+                        $name = $d['stored_device']['device']['full_display_name'] ?? (($d['stored_device']['device']['brand'] ?? 'N/A') . ' ' . ($d['stored_device']['device']['model'] ?? ''));
+                        $unitLabel = ($d['stored_device']['device']['unit_type'] ?? 'unit') === 'meter' ? 'Meter' : 'Pcs';
+                        $qtyStr = !empty($d['quantity']) ? (' (' . $d['quantity'] . ' ' . $unitLabel . ')') : '';
+                        return $name . $qtyStr;
+                    })->implode("\n");
                     return [
                         'no' => $index,
                         'penerima' => $clientName,

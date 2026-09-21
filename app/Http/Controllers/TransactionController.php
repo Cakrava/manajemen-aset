@@ -119,7 +119,8 @@ class TransactionController extends Controller
             if ($detail->storedDevice && $detail->storedDevice->device) {
                 return [
                     'stored_device_id' => $detail->storedDevice->id,
-                    'name'             => $detail->storedDevice->device->brand . ' ' . $detail->storedDevice->device->model,
+                    'name'             => $detail->storedDevice->device->full_display_name,
+                    'unit_type'        => $detail->storedDevice->device->unit_type,
                     'condition'        => $detail->storedDevice->condition,
                     'quantity'         => $detail->quantity, 
                     'stock'            => $detail->storedDevice->stock, 
@@ -163,6 +164,10 @@ class TransactionController extends Controller
                     if (!$storedDevice) {
                         throw new \Exception("Stok untuk perangkat '{$item['name']}' dengan kondisi '{$itemCondition}' tidak ditemukan.");
                     }
+                    if ($storedDevice->stock < $quantity) {
+                        throw new \Exception("Stok tidak mencukupi untuk '{$item['name']}'. Stok tersedia: {$storedDevice->stock}.");
+                    }
+                    $storedDevice->decrement('stock', $quantity);
                 }
                 
                 $storedDeviceId = $storedDevice->id;
@@ -218,9 +223,11 @@ class TransactionController extends Controller
             }
 
             \App\Models\TransactionDetail::create([
-                'transaction_id'   => $transactionId,
-                'stored_device_id' => $storedDeviceId,
-                'quantity'         => $quantity,
+                'transaction_id'       => $transactionId,
+                'stored_device_id'     => $storedDeviceId,
+                'quantity'             => $quantity,
+                'quantity_meter'       => $item['quantity_meter'] ?? null,
+                'waste_quantity_meter' => $item['waste_quantity_meter'] ?? 0.00,
             ]);
         }
     }

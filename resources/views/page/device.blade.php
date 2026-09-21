@@ -73,8 +73,8 @@
                                         <tr class="{{ $isRecentUpdate ? 'highlight-row' : '' }}">
                                             <td><input class="form-check-input device-checkbox" type="checkbox" value="{{ $device->id }}"></td>
                                             <td>{{ $device->brand }}</td>
-                                            <td>{{ $device->model }}</td>
-                                            <td>{{ $deviceTypeNames[$device->type] ?? 'Tidak Diketahui' }}</td>
+                                            <td><strong>{{ $device->full_display_name }}</strong></td>
+                                            <td><span class="badge bg-light-primary text-primary">{{ $deviceTypeNames[$device->type] ?? ucfirst(str_replace('_', ' ', $device->type)) }}</span></td>
                                             <td>
                                                 @if($device->created_at)
                                                     {{ $device->created_at->diffInDays() <= 30 ? $device->created_at->diffForHumans(['locale' => 'id']) : $device->created_at->format('d/m/Y') }}
@@ -107,28 +107,129 @@
 
     <!-- Modals -->
     <div class="modal fade" id="deviceModal" tabindex="-1" aria-labelledby="deviceModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header"><h5 class="modal-title" id="deviceModalLabel">New Device Name</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
                 <div class="modal-body">
                     <form id="deviceForm" action="{{ route('panel.device.store') }}" method="POST">
                         @csrf
                         <input type="hidden" name="device_id" id="device_id">
+                        
+                        <datalist id="brandDatalist">
+                            <option value="TP-Link">
+                            <option value="Cisco">
+                            <option value="MikroTik">
+                            <option value="Ubiquiti">
+                            <option value="Ruijie">
+                            <option value="Huawei">
+                            <option value="FiberHome">
+                            <option value="ZTE">
+                            <option value="Belden">
+                            <option value="CommScope">
+                            <option value="Amphenol">
+                            <option value="D-Link">
+                            <option value="Totolink">
+                            <option value="Schneider Electric">
+                            @if(isset($existingBrands))
+                                @foreach($existingBrands as $b)
+                                    <option value="{{ $b }}">
+                                @endforeach
+                            @endif
+                        </datalist>
+
+                        <datalist id="modelDatalist">
+                            @if(isset($existingModels))
+                                @foreach($existingModels as $m)
+                                    <option value="{{ $m }}">
+                                @endforeach
+                            @endif
+                        </datalist>
+
                         <div class="row mb-3">
-                            <div class="col-md-6"><label for="brand" class="form-label">Merek</label><input type="text" class="form-control" id="brand" name="brand" placeholder="Contoh: TP-Link"></div>
-                            <div class="col-md-6"><label for="model" class="form-label">Model</label><input type="text" class="form-control" id="model" name="model" placeholder="Contoh: WR820N"></div>
+                            <div class="col-md-6">
+                                <label for="brand" class="form-label">Merek (Brand)</label>
+                                <input type="text" class="form-control" id="brand" name="brand" list="brandDatalist" placeholder="Ketik/Pilih Merk, Contoh: TP-Link">
+                                <small class="text-muted">Ketik untuk mendapatkan rekomendasi merek.</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="model" class="form-label">Model / Seri</label>
+                                <input type="text" class="form-control" id="model" name="model" list="modelDatalist" placeholder="Contoh: WR820N / Patch Cord Cat6">
+                            </div>
                         </div>
+
                         <div class="mb-3">
-                            <label for="type" class="form-label">Tipe</label>
+                            <label for="type" class="form-label">Tipe Kategori</label>
                             <select class="form-select" id="type" name="type" style="width: 100%;">
-                                <option selected disabled>Select Device Type</option>
-                                <option value="router">Router</option>
-                                <option value="access_point">Access Point</option>
-                                <option value="repeater">Repeater</option>
-                                <option value="switch">Switch</option>
-                                <option value="modem">Modem</option>
+                                <option selected disabled>Pilih Tipe Perangkat / Kabel / Konektor</option>
+                                <optgroup label="Kabel & Konektor">
+                                    <option value="cable_pcs">Kabel Set / Patch Cord (Satuan Pcs per meter)</option>
+                                    <option value="cable_roll">Kabel Roll / Bulk (Hitungan Meteran/Roll)</option>
+                                    <option value="connector">Konektor (RJ45, LC, SC, FC, ST, Modular Plug)</option>
+                                    <option value="patch_panel">Patch Panel</option>
+                                </optgroup>
+                                <optgroup label="Perangkat Utama">
+                                    <option value="router">Router</option>
+                                    <option value="switch">Switch</option>
+                                    <option value="access_point">Access Point</option>
+                                    <option value="repeater">Repeater / Range Extender</option>
+                                    <option value="modem">Modem</option>
+                                    <option value="firewall">Firewall</option>
+                                    <option value="media_converter">Media Converter</option>
+                                    <option value="network_storage">Network Attached Storage (NAS)</option>
+                                    <option value="ip_camera">IP Camera</option>
+                                    <option value="ups">UPS (Uninterruptible Power Supply)</option>
+                                    <option value="rack">Network Rack/Cabinet</option>
+                                </optgroup>
                             </select>
                         </div>
+
+                        <!-- Dynamic Specs Field for Cables -->
+                        <div id="cablePcsFields" class="card bg-light border p-3 mb-3 d-none">
+                            <h6><i class="ti ti-ruler-2 me-1"></i>Spesifikasi Panjang Kabel Set (Pcs)</h6>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label">Template Panjang</label>
+                                    <select class="form-select" id="lengthTemplate">
+                                        <option value="">-- Pilih Template Panjang --</option>
+                                        <option value="0.5">0.5 Meter</option>
+                                        <option value="1">1 Meter</option>
+                                        <option value="1.5">1.5 Meter</option>
+                                        <option value="2">2 Meter</option>
+                                        <option value="3">3 Meter</option>
+                                        <option value="5">5 Meter</option>
+                                        <option value="10">10 Meter</option>
+                                        <option value="15">15 Meter</option>
+                                        <option value="20">20 Meter</option>
+                                        <option value="custom">Custom (Isi Manual)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label">Panjang Per Pcs</label>
+                                    <div class="input-group">
+                                        <input type="number" step="0.1" class="form-control" id="length_value" name="length_value" placeholder="Contoh: 3">
+                                        <span class="input-group-text">Meter</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="length_unit" value="meter">
+                            <small class="text-muted">Setiap varian panjang (misal 1m dan 3m) tersimpan sebagai data master unik yang terpisah.</small>
+                        </div>
+
+                        <div id="cableRollFields" class="card bg-light border p-3 mb-3 d-none">
+                            <h6><i class="ti ti-package me-1"></i>Spesifikasi Kabel Roll / Bulk</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Kapasitas Standar Per Roll</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="roll_capacity" name="roll_capacity" placeholder="Contoh: 300">
+                                        <span class="input-group-text">Meter / Roll</span>
+                                    </div>
+                                    <small class="text-muted">Digunakan untuk menghitung jumlah roll utuh fisik di gudang.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="unit_type" name="unit_type" value="pcs">
                     </form>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-primary" id="saveDeviceBtn">Save</button></div>
@@ -158,11 +259,37 @@
 
             $('#type').select2({ dropdownParent: $('#deviceModal') });
 
+            $('#type').on('change', function () {
+                var selectedType = $(this).val();
+                if (selectedType === 'cable_pcs') {
+                    $('#cablePcsFields').removeClass('d-none');
+                    $('#cableRollFields').addClass('d-none');
+                    $('#unit_type').val('pcs');
+                } else if (selectedType === 'cable_roll') {
+                    $('#cableRollFields').removeClass('d-none');
+                    $('#cablePcsFields').addClass('d-none');
+                    $('#unit_type').val('meter');
+                } else {
+                    $('#cablePcsFields').addClass('d-none');
+                    $('#cableRollFields').addClass('d-none');
+                    $('#unit_type').val('pcs');
+                }
+            });
+
+            $('#lengthTemplate').on('change', function() {
+                var val = $(this).val();
+                if (val && val !== 'custom') {
+                    $('#length_value').val(val);
+                } else if (val === 'custom') {
+                    $('#length_value').val('').focus();
+                }
+            });
+
             $('#btn-new-device').on('click', function () {
                 $('#deviceModalLabel').text('New Device Name');
                 $('#deviceForm').attr('action', "{{ route('panel.device.store') }}");
                 $('#deviceForm')[0].reset();
-                $('#device_id').val(''); // Pastikan device_id kosong
+                $('#device_id').val('');
                 $('#type').val(null).trigger('change');
             });
 
@@ -176,7 +303,12 @@
                     success: function (response) {
                         $('#brand').val(response.brand);
                         $('#model').val(response.model);
-                        $('#type').val(response.type.toLowerCase().replace(/ /g, '_')).trigger('change');
+                        $('#type').val(response.type).trigger('change');
+                        $('#length_value').val(response.length_value);
+                        $('#roll_capacity').val(response.roll_capacity);
+                        if (response.length_value) {
+                            $('#lengthTemplate').val(response.length_value).trigger('change');
+                        }
                     },
                     error: function (xhr) { alert('Failed to fetch device data for update.'); }
                 });

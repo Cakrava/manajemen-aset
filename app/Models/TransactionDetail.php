@@ -12,6 +12,8 @@ class TransactionDetail extends Model
         'transaction_id',
         'stored_device_id', // Ini adalah ID dari stored_devices
         'quantity',
+        'quantity_meter',
+        'waste_quantity_meter',
     ];
 
     /**

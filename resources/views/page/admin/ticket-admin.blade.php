@@ -419,7 +419,9 @@
                 li.className = 'list-group-item';
                 li.dataset.inventoryId = inv.id;
                 const selectedItem = selectedEquipments.find(eq => eq.inventory.id === inv.id);
-                li.innerHTML = `<div class="d-flex justify-content-between align-items-center"><div><strong>${inv.device.brand || 'N/A'} ${inv.device.model || 'N/A'}</strong> (${inv.device.type || 'N/A'})<br><small class="text-muted">Stok: ${inv.stock} | Kondisi: ${inv.condition}</small></div><div class="item-action-container"><div class="select-button-container"><button class="btn btn-sm ${selectedItem ? 'btn-success' : 'btn-outline-primary'} select-item-btn">${selectedItem ? `✓ Ditambahkan (${selectedItem.quantity})` : 'Pilih'}</button></div><div class="quantity-form-container" style="display: none;"><div class="input-group input-group-sm"><input type="number" class="form-control quantity-input" value="${selectedItem ? selectedItem.quantity : 1}" min="1" max="${inv.stock}" style="width: 70px;"><button class="btn btn-primary confirm-quantity-btn">OK</button><button class="btn btn-outline-secondary cancel-quantity-btn ms-1">×</button></div><p class="quantity-error-msg text-danger small mt-1" style="display: none;">Jumlah melebihi stok yang tersedia.</p></div></div></div>`;
+                const displayName = inv.device.full_display_name || ((inv.device.brand || 'N/A') + ' ' + (inv.device.model || 'N/A'));
+                const stockText = inv.formatted_stock || (inv.stock + (inv.device?.unit_type === 'meter' ? ' Meter' : ' Pcs'));
+                li.innerHTML = `<div class="d-flex justify-content-between align-items-center"><div><strong>${displayName}</strong> (${inv.device.type || 'N/A'})<br><small class="text-muted">Stok: <b>${stockText}</b> | Kondisi: ${inv.condition}</small></div><div class="item-action-container"><div class="select-button-container"><button class="btn btn-sm ${selectedItem ? 'btn-success' : 'btn-outline-primary'} select-item-btn">${selectedItem ? `✓ Ditambahkan (${selectedItem.quantity})` : 'Pilih'}</button></div><div class="quantity-form-container" style="display: none;"><div class="input-group input-group-sm"><input type="number" class="form-control quantity-input" value="${selectedItem ? selectedItem.quantity : 1}" min="1" max="${inv.stock}" style="width: 70px;"><button class="btn btn-primary confirm-quantity-btn">OK</button><button class="btn btn-outline-secondary cancel-quantity-btn ms-1">×</button></div><p class="quantity-error-msg text-danger small mt-1" style="display: none;">Jumlah melebihi stok yang tersedia.</p></div></div></div>`;
                 ul.appendChild(li);
             });
             inventoryListContainer.appendChild(ul);
@@ -505,11 +507,12 @@
                 const isSelected = withdrawnEquipments.some(we => we.stored_device_id === unit.stored_device_id);
                 const li = document.createElement('li');
                 li.className = 'list-group-item';
+                const unitLabel = unit.unit_type === 'meter' ? 'Meter' : 'Pcs';
                 li.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <strong>${unit.name}</strong><br>
-                            <small class="text-muted">Kondisi Saat Ini: ${unit.condition} | Terpasang (Stok): <b>${unit.quantity}</b> unit</small>
+                            <small class="text-muted">Kondisi Saat Ini: ${unit.condition} | Terpasang (Stok): <b>${unit.quantity}</b> ${unitLabel}</small>
                         </div>
                         <div class="input-group input-group-sm" style="width: 220px;">
                             <select class="form-select condition-select" ${isSelected ? 'disabled' : ''}>

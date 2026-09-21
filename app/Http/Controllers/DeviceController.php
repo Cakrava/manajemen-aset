@@ -19,6 +19,10 @@ class DeviceController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Unique Brands & Models for datalist auto-suggestions
+        $existingBrands = Device::where('status', '!=', 'deleted')->whereNotNull('brand')->pluck('brand')->unique()->values();
+        $existingModels = Device::where('status', '!=', 'deleted')->whereNotNull('model')->pluck('model')->unique()->values();
+
         // 2. Daftar nama jenis perangkat untuk ditampilkan di form atau filter.
         $deviceTypeNames = [
             'router' => 'Router',
@@ -51,8 +55,10 @@ class DeviceController extends Controller
             'poe_splitter' => 'PoE Splitter',
             'sfp_module' => 'SFP/SFP+ Module',
             'gbic_module' => 'GBIC Module',
+            'cable_pcs' => 'Kabel Set / Patch Cord (Pcs)',
+            'cable_roll' => 'Kabel Roll / Bulk (Meter)',
             'cable' => 'Network Cable (Ethernet, Fiber)',
-            'connector' => 'Connector (RJ45, Fiber Connectors)',
+            'connector' => 'Connector (RJ45, LC, SC, Fiber Connectors)',
             'patch_panel' => 'Patch Panel',
             'rack' => 'Network Rack/Cabinet',
             'ups' => 'Uninterruptible Power Supply (UPS)',
@@ -65,7 +71,7 @@ class DeviceController extends Controller
             'cable_tester' => 'Cable Tester',
         ];
 
-        return view('page.device', compact('devices', 'deviceTypeNames'));
+        return view('page.device', compact('devices', 'deviceTypeNames', 'existingBrands', 'existingModels'));
     }
 
 
@@ -75,30 +81,45 @@ class DeviceController extends Controller
             'brand' => 'required|max:255',
             'model' => 'required|max:255',
             'type' => 'required|string',
+            'unit_type' => 'nullable|string|in:pcs,meter',
+            'length_value' => 'nullable|numeric|min:0',
+            'length_unit' => 'nullable|string',
+            'roll_capacity' => 'nullable|integer|min:1',
         ]);
 
-        // ponytail: Menggunakan query Eloquent standar karena collation database default (utf8mb4_unicode_ci) sudah case-insensitive. Menghindari whereRaw('LOWER(...)') yang mematikan DB Index (O(n) full table scan).
-        $existingDevice = Device::where('brand', $validatedData['brand'])
-                                ->where('model', $validatedData['model'])
-                                ->where('type', $validatedData['type'])
-                                ->first();
+        if ($validatedData['type'] === 'cable_roll') {
+            $validatedData['unit_type'] = 'meter';
+        } else {
+            $validatedData['unit_type'] = $validatedData['unit_type'] ?? 'pcs';
+        }
+
+        $query = Device::where('brand', $validatedData['brand'])
+                        ->where('model', $validatedData['model'])
+                        ->where('type', $validatedData['type']);
+
+        if (!empty($validatedData['length_value'])) {
+            $query->where('length_value', $validatedData['length_value']);
+        } else {
+            $query->whereNull('length_value');
+        }
+
+        $existingDevice = $query->first();
 
         if ($existingDevice) {
-            // Jika perangkat ditemukan, cek statusnya
             if ($existingDevice->status === 'deleted') {
-                // Jika statusnya deleted, aktifkan kembali
-                $existingDevice->status = 'active'; // Asumsikan status default adalah 'active'
+                $existingDevice->status = 'active';
+                $existingDevice->unit_type = $validatedData['unit_type'];
+                $existingDevice->length_value = $validatedData['length_value'] ?? null;
+                $existingDevice->length_unit = $validatedData['length_unit'] ?? 'meter';
+                $existingDevice->roll_capacity = $validatedData['roll_capacity'] ?? null;
                 $existingDevice->save();
 
                 return response()->json(['message' => 'Perangkat yang sama pernah dihapus dan kini berhasil diaktifkan kembali.']);
             } else {
-                // Jika statusnya BUKAN deleted, berarti ini duplikat aktif. Tolak.
-                // Kondisi ini menangani baik yang sama persis (plek ketiplek) maupun yang beda kapitalisasi.
-                return response()->json(['message' => 'Perangkat dengan brand, model, dan tipe yang sama persis sudah ada.'], 400);
+                return response()->json(['message' => 'Perangkat dengan spesifikasi ini sudah ada.'], 400);
             }
         }
 
-        // Jika tidak ada perangkat yang cocok sama sekali, buat yang baru.
         Device::create($validatedData);
 
         return response()->json(['message' => 'Perangkat berhasil ditambahkan.']);
@@ -114,21 +135,33 @@ class DeviceController extends Controller
             'brand' => 'required|max:255',
             'model' => 'required|max:255',
             'type' => 'required|string',
+            'unit_type' => 'nullable|string|in:pcs,meter',
+            'length_value' => 'nullable|numeric|min:0',
+            'length_unit' => 'nullable|string',
+            'roll_capacity' => 'nullable|integer|min:1',
         ]);
 
-        // Cek apakah ada perangkat LAIN yang memiliki kombinasi brand, model, dan tipe yang sama.
-        $duplicateCheck = Device::where('id', '!=', $device->id) // <-- Poin Kunci: Kecualikan diri sendiri
-                                ->whereRaw('LOWER(brand) = ?', [strtolower($validatedData['brand'])])
-                                ->whereRaw('LOWER(model) = ?', [strtolower($validatedData['model'])])
-                                ->whereRaw('LOWER(type) = ?', [strtolower($validatedData['type'])])
-                                ->exists(); // `exists()` lebih efisien karena hanya butuh jawaban ya/tidak
-
-        if ($duplicateCheck) {
-            // Jika ditemukan duplikat, kembalikan error 400.
-            return response()->json(['message' => 'Update gagal. Perangkat lain dengan brand, model, dan tipe ini sudah ada.'], 400);
+        if ($validatedData['type'] === 'cable_roll') {
+            $validatedData['unit_type'] = 'meter';
+        } else {
+            $validatedData['unit_type'] = $validatedData['unit_type'] ?? 'pcs';
         }
 
-        // Jika tidak ada duplikat, lanjutkan proses update.
+        $query = Device::where('id', '!=', $device->id)
+                        ->whereRaw('LOWER(brand) = ?', [strtolower($validatedData['brand'])])
+                        ->whereRaw('LOWER(model) = ?', [strtolower($validatedData['model'])])
+                        ->whereRaw('LOWER(type) = ?', [strtolower($validatedData['type'])]);
+
+        if (!empty($validatedData['length_value'])) {
+            $query->where('length_value', $validatedData['length_value']);
+        } else {
+            $query->whereNull('length_value');
+        }
+
+        if ($query->exists()) {
+            return response()->json(['message' => 'Update gagal. Perangkat lain dengan spesifikasi ini sudah ada.'], 400);
+        }
+
         $device->update($validatedData);
 
         return response()->json(['message' => 'Perangkat berhasil diupdate.']);

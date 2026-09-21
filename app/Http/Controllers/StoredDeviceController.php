@@ -72,84 +72,92 @@ class StoredDeviceController extends Controller
     {
         $validatedData = $request->validate([
             'device_id' => 'required|max:255',
-            'stock' => 'required|integer|min:1', // Tambahkan validasi integer dan minimal 1
+            'stock' => 'required|integer|min:1',
+            'input_mode' => 'nullable|string|in:unit,roll',
             'condition' => 'required',
         ]);
 
-        // Ambil data Device berdasarkan device_id dari request
         $device = Device::findOrFail($request->device_id);
 
-        // Cari StoredDevice yang sudah ada dengan brand, type, dan condition yang sama
+        $stockToAdd = (int) $request->stock;
+        if ($request->input_mode === 'roll' && $device->roll_capacity && $device->roll_capacity > 0) {
+            $stockToAdd = $stockToAdd * (int)$device->roll_capacity;
+        }
+
         $existingStoredDevice = StoredDevice::where('device_id', $request->device_id)
             ->where('condition', $request->condition)
             ->first();
 
         if ($existingStoredDevice) {
-            // Jika ditemukan, tambahkan stok yang ada dengan stok baru dari request
-            $existingStoredDevice->stock += $request->stock;
+            $existingStoredDevice->stock += $stockToAdd;
             $existingStoredDevice->save();
 
-            Session::flash('success', 'Stok perangkat berhasil diperbarui. Brand: ' . $device->brand . ', Type: ' . $device->type . ', Condition: ' . $request->condition . ', Stok Ditambahkan: ' . $request->stock);
+            Session::flash('success', 'Stok perangkat berhasil diperbarui. ' . $device->full_display_name . ' (' . $request->condition . '), Stok Ditambahkan: ' . number_format($stockToAdd) . ' ' . ($device->unit_type ?? 'pcs'));
         } else {
-            
-            $storedDevice = StoredDevice::create($validatedData);
-            Session::flash('success', 'Perangkat baru berhasil ditambahkan. Brand: ' . $device->brand . ', Type: ' . $device->type . ', Condition: ' . $request->condition . ', Stok: ' . $request->stock);
+            $storedDevice = StoredDevice::create([
+                'device_id' => $request->device_id,
+                'stock' => $stockToAdd,
+                'condition' => $request->condition,
+            ]);
+            Session::flash('success', 'Perangkat baru berhasil ditambahkan. ' . $device->full_display_name . ' (' . $request->condition . '), Stok: ' . number_format($stockToAdd) . ' ' . ($device->unit_type ?? 'pcs'));
         }
 
         Session::flash('warning-stored-device', 'Penyesuaian data secara manual melalui halaman ini hanya dianjurkan dalam kondisi yang benar-benar diperlukan');
-
+        
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Stok berhasil diperbarui.']);
+        }
     }
 
     public function update(Request $request)
     {
-        // Validasi dan logika lainnya tetap sama...
         $validatedData = $request->validate([
             'stored_id' => 'required|integer|exists:stored_devices,id',
-            'newstock'     => 'required|integer|min:1',
+            'newstock'  => 'required|integer|min:1',
+            'input_mode'=> 'nullable|string|in:unit,roll',
         ]);
-    
+
         $storedId = $validatedData['stored_id'];
+        $storedDevice = StoredDevice::with('device')->findOrFail($storedId);
+
         $stockToAdd = (int) $validatedData['newstock'];
-    
-        Log::info("Menerima permintaan untuk MENAMBAH stok sebanyak {$stockToAdd} unit untuk perangkat ID: {$storedId}");
-    
+        if ($request->input_mode === 'roll' && $storedDevice->device && $storedDevice->device->roll_capacity && $storedDevice->device->roll_capacity > 0) {
+            $stockToAdd = $stockToAdd * (int)$storedDevice->device->roll_capacity;
+        }
+
+        Log::info("Menerima permintaan untuk MENAMBAH stok sebanyak {$stockToAdd} untuk stored ID: {$storedId}");
+
         DB::beginTransaction();
         try {
             $storedDevice = StoredDevice::lockForUpdate()->findOrFail($storedId);
             $oldStock = $storedDevice->stock;
             $storedDevice->increment('stock', $stockToAdd);
             $newTotalStock = $storedDevice->fresh()->stock;
-            
-            Log::info("SUKSES: Stok perangkat ID {$storedId} ditambah dari {$oldStock} menjadi {$newTotalStock}.");
+
             DB::commit();
-    
-            // Buat pesan sukses
-            $successMessage = "Berhasil menambahkan {$stockToAdd} unit. Stok {$storedDevice->device->brand} sekarang menjadi {$newTotalStock} item.";
-    
-            // --- PENYESUAIAN INTI DI SINI ---
+
+            $unitLabel = ($storedDevice->device && $storedDevice->device->unit_type === 'meter') ? 'Meter' : 'Pcs';
+            $successMessage = "Berhasil menambahkan " . number_format($stockToAdd) . " {$unitLabel}. Stok {$storedDevice->device->full_display_name} sekarang menjadi " . number_format($newTotalStock) . " {$unitLabel}.";
+
             if ($request->wantsJson() || $request->ajax()) {
-                // Jika request berasal dari AJAX, kembalikan respons JSON
                 return response()->json([
                     'success' => true,
                     'message' => $successMessage
                 ]);
             }
-    
-            // Jika request biasa, gunakan flash session dan redirect
+
             Session::flash('success', $successMessage);
             Session::flash('warning-stored-device', 'Penyesuaian data secara manual melalui halaman ini hanya dianjurkan dalam kondisi yang benar-benar diperlukan');
-            // return redirect()->back();
-    
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("GAGAL menambah stok untuk perangkat ID {$storedId}: " . $e->getMessage());
             $errorMessage = 'Terjadi kesalahan saat mencoba menambah stok.';
-    
+
             if ($request->wantsJson() || $request->ajax()) {
-                // Jika request AJAX gagal, kembalikan JSON error
                 return response()->json(['success' => false, 'message' => $errorMessage], 500);
             }
-    
+
             Session::flash('error', $errorMessage);
             return redirect()->back();
         }
