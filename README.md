@@ -93,8 +93,8 @@ Modul pelaporan yang memungkinkan ekspor rekapitulasi data stok gudang, sebaran 
 1. **Clone Repositori**:
 
    ```bash
-   git clone https://github.com/Cakrava/manajemen-aset-demo.git
-   cd manajemen-aset-demo
+   git clone https://github.com/Cakrava/manajemen-aset.git
+   cd manajemen-aset
    ```
 
 2. **Instalasi Dependensi PHP & JS**:
@@ -111,10 +111,10 @@ Modul pelaporan yang memungkinkan ekspor rekapitulasi data stok gudang, sebaran 
    php artisan key:generate
    ```
 
-4. **Migrasi Database & Seed Data Mockup**:
+4. **Migrasi Database**:
 
    ```bash
-   php artisan migrate --seed --class=DemoMockupSeeder
+   php artisan migrate --seed
    ```
 
 5. **Menjalankan Server Lokal**:
